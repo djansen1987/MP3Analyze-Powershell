@@ -11,6 +11,7 @@ $InitialFolder = "C:\Temp\Sidify\Download-Temp\"
 $RunTimeStamp = $((get-date).ToString("yyyyMMdd"))
 ## Log Powershell output to file in same directory
 $Global:LogginEnabled = $true ## $true = yes | $false = no
+$Prefix = "(SP-RIP-N)"
 
 #--------- DO Not Edit Below ----------#
 
@@ -121,7 +122,7 @@ Function Get-MP3MetaData{
         Foreach($Dir in $Directory)
         {
             $ObjDir = $shell.NameSpace($Dir)
-            $Files = gci $Dir| ?{$_.Extension -in '.mp3','.mp4'}
+            $Files = Get-ChildItem $Dir| ?{$_.Extension -in '.mp3','.mp4'}
 
             Foreach($File in $Files)
             {
@@ -239,14 +240,13 @@ function Start-Mp3($data){
 
     try{
         $startEnd = ([DateTime]$_.Length).AddSeconds(-$CheckTime).TimeOfDay.TotalSeconds
-        Write-host $_.name " (Begin) "
-        write-host `"$($_.Fullname)`"
+        Write-host "$($_.name)  (Begin)" -ForegroundColor Cyan
         #Show-CurrentSong -Name ($_.name) -status "Begin" -time 10
 #        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
         Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
         #Show-CurrentSong -Name ($_.name) -status "Ending" -time 10
-        Write-host $_.name " (Ending) "
-       Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+        Write-host "$($_.name)  (Ending)" -ForegroundColor Cyan
+        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
 #        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
     }
     catch{}
@@ -418,7 +418,7 @@ function Remove-Silence($folder){
     return $($folder + "\Silence\")
 }
 
-function Fix-Id3andFileName ($folder){
+function Fix-Id3andFileName ($folder,$Prefix){
     $items = Get-ChildItem -Path "$folder" -File -filter "*.mp3"
     $totalitems = $items.count
     $waitmessage = "Renaming Files and updating ID3Tag... Please Wait"
@@ -429,7 +429,7 @@ function Fix-Id3andFileName ($folder){
         $Artist = $CurrentTag.Artists
         # Strip Title and replace Characters
         $Title = $($CurrentTag.Title).replace("7`"","7 inch").replace("12`"","12 inch").replace("?","").replace("`/"," ").replace("`"","").split('[')[0].split(']')[0]
-        $NewName = "$Artist - $Title (SP-RIP-N)"
+        $NewName = "$Artist - $Title $Prefix"
         $ext = $file.Extension
 
         $newfilename = Rename-Item -Path $file.FullName  -NewName $($NewName + $ext ) -PassThru
@@ -658,18 +658,16 @@ $StopWatch.Start()
 
 # Finally Run Through Files
 $ID3TagData |% {
-    write-host "Count: $total / $($ID3TagData.Count)"
+    Clear-Host
+    write-host "Count: $total / $($ID3TagData.Count)" -ForegroundColor Green
     $Result = Check-File -file $_
-    write-host $Result
+    write-host "$Result" -ForegroundColor Cyan
     if($Result -eq "Bad"){
         $BadCount = $BadCount + 1
     }
     $total = $Total - 1
-    write-host " "
-    write-host " --- "
-    write-host " "
     $TotalMP3Time += $_.length
-    Clear-Host
+    
 }
 
 # We are at the end of the script. Let ending function know we made it
