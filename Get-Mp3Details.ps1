@@ -426,7 +426,8 @@ function Fix-Id3andFileName ($folder){
         $file  = $filename
         $CurrentTag = Get-Id3Tag $file.FullName
         $Artist = $CurrentTag.Artists
-        $Title = $($CurrentTag.Title).replace("7`"","7 inch").replace("12`"","12 inch").replace("?","").replace("`/"," ").replace("`"","")
+        # Strip Title and replace Characters
+        $Title = $($CurrentTag.Title).replace("7`"","7 inch").replace("12`"","12 inch").replace("?","").replace("`/"," ").replace("`"","").split('[')[0].split(']')[0]
         $NewName = "$Artist - $Title (SP-RIP-N)"
         $ext = $file.Extension
 
