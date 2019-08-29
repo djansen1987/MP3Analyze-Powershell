@@ -448,7 +448,7 @@ function Retrive-Tag($File,$Artist, $Title){
     #$result.metadata.'release-list'.release.date
 }
 
-function Set-Ending($LogginEnabled){
+function Set-Ending(){
     # Were done. Stop The Time!
     $StopWatch.Stop()
 
