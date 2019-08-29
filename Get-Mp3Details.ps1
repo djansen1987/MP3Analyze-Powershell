@@ -1,5 +1,5 @@
 ﻿write-host "Warming up... Please Wait"
-
+$Done = $false
 $TempFolder = "$env:TEMP\MP3Analyze"
 if(!(Test-Path $TempFolder)){
     New-Item -ItemType Directory $TempFolder
@@ -122,8 +122,8 @@ Function Get-MP3MetaData{
                     }
                  
                 }
-            
-                New-Object psobject -Property $MetaData |select *, @{n="Directory";e={$Dir}}, @{n="Fullname";e={Join-Path $Dir $File.Name -Resolve}}, @{n="Extension";e={$File.Extension}}
+
+                New-Object psobject -Property $MetaData |select *, @{n="Directory";e={$Dir}}, @{n="Fullname";e={Join-Path "$Dir" "$($File.Name)" -Resolve}}, @{n="Extension";e={$File.Extension}}
             }
         }
     }
@@ -224,11 +224,14 @@ function Start-Mp3($data){
     try{
         $startEnd = ([DateTime]$_.Length).AddSeconds(-$CheckTime).TimeOfDay.TotalSeconds
         Write-host $_.name " (Begin) "
+        write-host `"$($_.Fullname)`"
         #Show-CurrentSong -Name ($_.name) -status "Begin" -time 10
-        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
+        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
+#        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
         #Show-CurrentSong -Name ($_.name) -status "Ending" -time 10
         Write-host $_.name " (Ending) "
-        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+ #       Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
     }
     catch{}
     
@@ -248,7 +251,14 @@ function Check-File($File){
         Move-Item -Path $_.Fullname -Destination ($_.Directory + "\Bad\")
         return "Bad"
     }
-    if($response -eq "Retry"){Check-File -file $_}else{write-host "You Hit Cancel";read-host "press enter to exit" ;break}
+    if($response -eq "Retry"){
+        Check-File -file $_
+    }else{
+        write-host "You Hit Cancel"
+        read-host "press enter to exit"
+        set-ending
+        break
+    }
     
 }
 
@@ -311,6 +321,7 @@ function Get-CheckTime(){
     }
     Else{
         Write-Error "Operation cancelled by user."
+        set-ending
         break
     }
 }
@@ -400,7 +411,7 @@ function Fix-Id3andFileName ($folder){
         $file  = $filename
         $CurrentTag = Get-Id3Tag $file.FullName
         $Artist = $CurrentTag.Artists
-        $Title = $CurrentTag.Title
+        $Title = $($CurrentTag.Title).replace("7`"","7 inch").replace("12`"","12 inch").replace("?","").replace("`/"," ").replace("`"","")
         $NewName = "$Artist - $Title (SP-RIP-N)"
         $ext = $file.Extension
 
@@ -414,12 +425,48 @@ function Fix-Id3andFileName ($folder){
     }
 }
 
-function Retrive-Tag($Artist, $Title){
-[xml]$result = Invoke-WebRequest -Uri "https://musicbrainz.org/ws/2/release/?query=`"Going%20to%20Ibiza`"&artist=venga"
+function Retrive-Tag($File,$Artist, $Title){
+    $tag = Get-Id3Tag $File
+    $tag
+    #[xml]$result = Invoke-WebRequest -Uri "https://musicbrainz.org/ws/2/release/?query=`"Going%20to%20Ibiza`"&artist=venga"
 
-$result.metadata.'release-list'.release.date
+    #$result.metadata.'release-list'.release.date
 }
 
+
+function Set-Ending(){
+    # Were done. Stop The Time!
+    $StopWatch.Stop()
+
+    # Some math (proberbly wrong)
+    $savedtimecalc = [timespan]::fromseconds( $(( ($TotalMP3Time.TimeOfDay.TotalSeconds) - (($ID3TagData.Count) * ($CheckTime*2)) )) ) 
+
+    # Output some Details/Summary
+    
+    if($Done){
+        Write-Host " "
+        Write-Host " "
+        Write-Host " "
+        Write-Host " "
+        Write-Host " "
+        Write-Host " "
+        Write-Host " --------------- Summary -------------- "
+        Write-Host " "
+        write-host "Total`t`t`t $($ID3TagData.Count)"
+        write-host "Total Bad:`t`t $BadCount"
+        write-host "Total Runtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$StopWatch.Elapsed.hours,$StopWatch.Elapsed.minutes,$StopWatch.Elapsed.seconds))"
+        write-host "Total playtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$TotalMP3Time.TimeOfDay.hours,$TotalMP3Time.TimeOfDay.minutes,$TotalMP3Time.TimeOfDay.seconds))"
+        write-host "Saved Time: `t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$savedtimecalc.hours,$savedtimecalc.minutes,$savedtimecalc.seconds))"
+        read-host -Prompt "Press enter to exit and open output folder."
+        Start-Process explorer $MessureFolder
+    }else{
+        Write-Warning "Failed or Cancelled"
+    }
+    stop-Transcript |Out-Null
+}
+#Retrive-Tag -File $file
+#
+#$file = Get-Item -Path 'S:\Download-Temp\90s\Ain''t Nobody.mp3'
 
 # ASk Folder to scan
 if(Test-Path "$TempFolder\PreviousLocation.json"){
@@ -439,7 +486,38 @@ if(Test-Path "$TempFolder\PreviousLocation.json"){
 if(!($Filepath)){
     Write-Warning "No path selected"
     Read-Host "Press enter to exit"
+    set-ending
     break
+}else{
+    #$invalidChars = [IO.Path]::GetInvalidFileNameChars() -join ''
+    #$re = "[{0}]" -f [RegEx]::Escape($invalidChars +"][")
+    $re2 = "[{0}]" -f [RegEx]::Escape("][")
+    #($Name -replace $re)
+    #$RegEx = '[][]'
+    $RegEx2 = [string][System.IO.Path]::GetInvalidFileNameChars()
+    Get-ChildItem $Filepath -File |%{
+        if($_.FullName -match $re2){
+
+            $newname = ($_.FullName.split('[')[0].split(']')[0]+ $_.Extension)
+            Write-Warning "Bad File name found $($_.FullName)"
+            Write-Warning "replace with $newname"
+            $BadFileResponse = Ask-User -Title "Warning Bad File Name" -Message "Bad File name found:
+$($_.FullName)
+
+replace with:
+$newname
+
+"
+            if($BadFileResponse -eq "yes"){
+                Move-Item -LiteralPath $_.FullName  $newname
+            }elseif ($BadFileResponse -eq "No" -or $BadFileResponse -eq "Cancel"){
+                Write-Warning "Fix file and try again"
+                set-ending
+                break
+            }
+
+        }
+     }
 }
 
 Set-Location $Filepath
@@ -467,6 +545,7 @@ if ($NormalizeResponse -eq "Yes"){
 }elseif ($NormalizeResponse -eq "No"){
     Write-host "Skipping normalize"
 }elseif ($NormalizeResponse -eq "Cancel"){
+    set-ending
     break
 }
 
@@ -489,6 +568,7 @@ if ($RemoveSilenceResponse -eq "Yes"){
 }elseif ($RemoveSilenceResponse -eq "No"){
     Write-host "Skipping Remove Silence"
 }elseif ($RemoveSilenceResponse -eq "Cancel"){
+    set-ending
     break
 }
 
@@ -509,6 +589,7 @@ if ($FixID3TagResponse -eq "Yes"){
 }elseif ($FixID3TagResponse -eq "No"){
     Write-host "Skipping normalize"
 }elseif ($FixID3TagResponse -eq "Cancel"){
+    set-ending
     break
 }
 
@@ -548,6 +629,7 @@ cls
 # Here we go, start stopwatch
 $StopWatch.Start()
 
+
 # Run Through Files
 $ID3TagData |% {
     $Result = Check-File -file $_
@@ -560,27 +642,6 @@ $ID3TagData |% {
     write-host " "
     $TotalMP3Time += $_.length
 }
-
-# Were done. Stop The Time!
-$StopWatch.Stop()
-
-# Some math (proberbly wrong)
-$savedtimecalc = [timespan]::fromseconds( $(( ($TotalMP3Time.TimeOfDay.TotalSeconds) - (($ID3TagData.Count) * ($CheckTime*2)) )) ) 
-
-# Output some Details/Summary
-Write-Host " "
-Write-Host " "
-Write-Host " "
-Write-Host " "
-Write-Host " "
-Write-Host " "
-Write-Host " --------------- Summary -------------- "
-Write-Host " "
-write-host "Total`t`t`t $($ID3TagData.Count)"
-write-host "Total Bad:`t`t $BadCount"
-write-host "Total Runtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$StopWatch.Elapsed.hours,$StopWatch.Elapsed.minutes,$StopWatch.Elapsed.seconds))"
-write-host "Total playtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$TotalMP3Time.TimeOfDay.hours,$TotalMP3Time.TimeOfDay.minutes,$TotalMP3Time.TimeOfDay.seconds))"
-write-host "Saved Time: `t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$savedtimecalc.hours,$savedtimecalc.minutes,$savedtimecalc.seconds))"
-read-host -Prompt "Press enter to exit and open output folder."
-Start-Process explorer $MessureFolder
-stop-Transcript |Out-Null
+$Done = $true
+set-ending
+$ID3TagData |?{$_.title -like "*around*"}|select fullname,title
