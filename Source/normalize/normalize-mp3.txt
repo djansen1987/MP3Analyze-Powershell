@@ -1,0 +1,88 @@
+NORMALIZE-MP3(1)                                 NORMALIZE-MP3(1)
+
+
+
+NAME
+       normalize-mp3  - adjust levels of mp3 or ogg files by run­
+       ning normalize(1), then re-encoding
+
+SYNOPSIS
+        normalize-mp3 [OPTION]... [FILE]...
+        normalize-ogg [OPTION]... [FILE]...
+
+DESCRIPTION
+       Normalize volume of mp3 or ogg files by decoding,  running
+       normalize,  and  re-encoding.  This requires as much extra
+       disk space as the largest mp3 or ogg file, decoded.   Note
+       that for batch and mix mode, all files must be decoded, so
+       there must be enough disk space for the decoded copies  of
+       all specified mp3 and ogg files.
+
+       --ogg  Convert files to OGG, regardless of original format
+
+       --mp3  Convert files to MP3, regardless of original format
+
+       --bitrate BR
+              Set bitrate of re-encoded file (default 128)
+
+       --tmpdir TMP
+              Put temporary WAV files in temp directory TMP
+
+       --notags
+              Do not copy ID3 or OGG tags to the output file
+
+       The  following four options may be used to set the encoder
+       and decoder commands  for  mp3  and  ogg  vorbis.   %m  is
+       expanded to the name of the mp3 or vorbis file, %w expands
+       to the name of the temporary WAV file, and %b  expands  to
+       the  bitrate,  as  specified by the --bitrate option.  Run
+       normalize-mp3 with no arguments to see the default values.
+
+       --mp3encode=X
+              mp3 encoder
+
+       --mp3decode=X
+              mp3 decoder
+
+       --oggencode=X
+              ogg vorbis encoder
+
+       --oggdecode=X
+              ogg vorbis decoder
+
+       -h     Display this help and exit.
+
+       -V     Display version information and exit.
+
+       These arguments are passed as arguments to normalize.
+              Run "normalize --help" for more info.
+
+       -a AMP
+
+       -g ADJ
+
+       -n
+
+       -T THR
+
+       -b
+
+       -m
+
+       -v
+
+       -q
+
+
+       REPORTING BUGS
+              Report bugs to <chrisvaill@gmail.com>.
+
+SEE ALSO
+       The normalize(1) Man page
+
+NOTES
+       This page was provided by Eduardo Maçan <macan@debian.org>
+
+
+
+                          September 2001         NORMALIZE-MP3(1)

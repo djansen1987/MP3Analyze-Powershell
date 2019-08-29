@@ -1,0 +1,586 @@
+﻿write-host "Warming up... Please Wait"
+
+$TempFolder = "$env:TEMP\MP3Analyze"
+if(!(Test-Path $TempFolder)){
+    New-Item -ItemType Directory $TempFolder
+}
+
+$InitialFolder = "C:\Temp\Sidify\Download-Temp\"
+$RunTimeStamp = $((get-date).ToString("yyyyMMdd"))
+$ID3Module = Get-Module -Name ID3
+if(!($ID3Module)){
+    Import-Module -Name ID3
+}
+$ID3Module = Get-Module -Name ID3
+if(!($ID3Module)){
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    $IsAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if($IsAdmin){
+        Install-Module -Name ID3
+    }else{
+        Write-Warning "Need to be admin to install ID3 Powershell Module"
+        Read-Host "Press enter to exit"
+        break
+    }
+}
+
+
+$vlcinstall = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*vlc*"}
+$Mp3Gain = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*gain*"}
+
+if(!($vlcinstall)){
+    if(Test-Path "C:\Program Files\VideoLAN\VLC\vlc.exe"){
+        $vlcPath = "C:\Program Files\VideoLAN\VLC\vlc.exe"
+    }elseif(Test-Path "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"){
+        $vlcPath = "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
+    }else{
+        write-host "vlc not found, please install vlc"
+        read-host -Prompt "Press enter to exit."
+        (New-Object -Com Shell.Application).Open("https://www.videolan.org/vlc/")        
+        break
+    }
+}else{
+    $vlcPath = "$($vlcinstall.InstallLocation)\vlc.exe"    
+}
+
+if(!($Mp3Gain)){
+    if(Test-Path "C:\Program Files\MP3Gain\mp3gain.exe"){
+        $Mp3GainPath = "C:\Program Files\MP3Gain\mp3gain.exe"
+    }elseif(Test-Path "C:\Program Files (x86)\MP3Gain\mp3gain.exe"){
+        $Mp3GainPath = "C:\Program Files (x86)\MP3Gain\mp3gain.exe"
+    }else{
+        write-host "MP3Gain not found, please install vlc"
+        read-host -Prompt "Press enter to exit."
+        (New-Object -Com Shell.Application).Open("http://mp3gain.sourceforge.net")        
+        break
+    }
+}else{
+    $Mp3GainPath = "$($Mp3Gain.InstallLocation)\mp3gain.exe"    
+}
+#$CheckTime = "10"
+#$Filepath = "C:\Temp\TuneTest\"
+
+#--------- DO Not Edit Below ----------#
+
+
+Function Get-Folder($initialDirectory){
+
+            Add-Type -AssemblyName System.Windows.Forms
+            $FolderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{
+                SelectedPath = $initialDirectory; ShowNewFolderButton = $false
+            }
+
+
+        $Prop = New-Object System.Windows.Forms.Form -Property @{TopMost = $true }
+
+        [void]$FolderBrowser.ShowDialog($Prop)  
+        Return $FolderBrowser.SelectedPath
+    
+        
+        #If ($FolderBrowser -eq "OK"){
+        #    Return $FolderBrowser.SelectedPath
+        #}
+        #Else{
+        #    Write-Error "Operation cancelled by user."
+        #    break
+        #}
+}
+
+Function Get-MP3MetaData{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([Psobject])]
+    Param
+    (
+        [String] [Parameter(Mandatory=$true, ValueFromPipeline=$true)] $Directory
+    )
+
+    Begin
+    {
+        $shell = New-Object -ComObject "Shell.Application"
+    }
+    Process
+    {
+
+        Foreach($Dir in $Directory)
+        {
+            $ObjDir = $shell.NameSpace($Dir)
+            $Files = gci $Dir| ?{$_.Extension -in '.mp3','.mp4'}
+
+            Foreach($File in $Files)
+            {
+                $ObjFile = $ObjDir.parsename($File.Name)
+                $MetaData = @{}
+                $MP3 = ($ObjDir.Items()|?{$_.path -like "*.mp3" -or $_.path -like "*.mp4"})
+                $PropertArray = 0,1,2,12,13,14,15,16,17,18,19,20,21,22,27,28,36,220,223
+            
+                Foreach($item in $PropertArray)
+                { 
+                    If($ObjDir.GetDetailsOf($ObjFile, $item)) #To avoid empty values
+                    {
+                        $MetaData[$($ObjDir.GetDetailsOf($MP3,$item))] = $ObjDir.GetDetailsOf($ObjFile, $item)
+                    }
+                 
+                }
+            
+                New-Object psobject -Property $MetaData |select *, @{n="Directory";e={$Dir}}, @{n="Fullname";e={Join-Path $Dir $File.Name -Resolve}}, @{n="Extension";e={$File.Extension}}
+            }
+        }
+    }
+    End
+    {
+    }
+}
+
+Function Show-CurrentSong ($Name,$status,$time) {
+
+    Add-Type -AssemblyName System.Windows.Forms    
+
+    # Build Form
+    $objForm = New-Object System.Windows.Forms.Form
+    $objForm.Text = $status
+    $objForm.Size = New-Object System.Drawing.Size(220,100)
+
+    # Add Label
+    $objLabel = New-Object System.Windows.Forms.Label
+    $objLabel.Location = New-Object System.Drawing.Size(80,20) 
+    $objLabel.Size = New-Object System.Drawing.Size(100,20)
+    $objLabel.Text = $Name
+    $objForm.Controls.Add($objLabel)
+    
+    # Show the form
+    $objForm.Show()| Out-Null
+
+    # wait 5 seconds
+    Start-Sleep -Seconds $time
+
+    # destroy form
+    $objForm.Close() | Out-Null
+    
+}
+
+function Get-Response($Name){
+    Add-Type -AssemblyName System.Windows.Forms
+
+    Add-Type -AssemblyName System.Drawing
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'How Was the MP3'
+    $form.Size = New-Object System.Drawing.Size(380,220)
+    $form.StartPosition = 'CenterScreen'
+
+    $GoodButton = New-Object System.Windows.Forms.Button
+    $GoodButton.Location = New-Object System.Drawing.Point(75,120)
+    $GoodButton.Size = New-Object System.Drawing.Size(75,23)
+    $GoodButton.Text = 'Good'
+    $GoodButton.DialogResult = [System.Windows.Forms.DialogResult]::yes
+
+    $form.AcceptButton = $GoodButton
+    $form.Controls.Add($GoodButton)
+
+    $BadButton = New-Object System.Windows.Forms.Button
+    $BadButton.Location = New-Object System.Drawing.Point(150,120)
+    $BadButton.Size = New-Object System.Drawing.Size(75,23)
+    $BadButton.Text = 'Bad'
+    $BadButton.DialogResult = [System.Windows.Forms.DialogResult]::no
+
+    $form.AcceptButton = $BadButton
+    $form.Controls.Add($BadButton)
+
+    $ReCheckButton = New-Object System.Windows.Forms.Button
+    $ReCheckButton.Location = New-Object System.Drawing.Point(225,120)
+    $ReCheckButton.Size = New-Object System.Drawing.Size(75,23)
+    $ReCheckButton.Text = 'Re-Check'
+    $ReCheckButton.DialogResult = [System.Windows.Forms.DialogResult]::retry
+
+    $form.CancelButton = $ReCheckButton
+    $form.Controls.Add($ReCheckButton)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10,20)
+    $label.Size = New-Object System.Drawing.Size(480,180)
+    $label.Text = "
+    How Was $Name ?
+
+    When Choose Good, go to next.
+    When Choose Bad, move item to folder Bad and go to next.
+    When Choos Re-Check, play Mp3 Again.
+
+    "
+
+    $form.Controls.Add($label)
+    $form.Topmost = $true
+
+    $Prop = New-Object System.Windows.Forms.Form -Property @{TopMost = $true }
+    $form.ShowDialog($prop)
+    #$form.ShowDialog()
+
+
+}
+
+function Start-Mp3($data){
+ 
+
+    try{
+        $startEnd = ([DateTime]$_.Length).AddSeconds(-$CheckTime).TimeOfDay.TotalSeconds
+        Write-host $_.name " (Begin) "
+        #Show-CurrentSong -Name ($_.name) -status "Begin" -time 10
+        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
+        #Show-CurrentSong -Name ($_.name) -status "Ending" -time 10
+        Write-host $_.name " (Ending) "
+        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+    }
+    catch{}
+    
+    (Get-Response -Name ($data.name))
+}
+
+function Check-File($File){
+    $response = Start-Mp3 -data $_
+
+    if($response -eq "Yes"){
+        return "Good"
+    }
+
+    if($response -eq "No"){
+        
+        New-Item -ItemType Directory ($_.Directory + "\Bad\") -Force -ea SilentlyContinue|Out-Null
+        Move-Item -Path $_.Fullname -Destination ($_.Directory + "\Bad\")
+        return "Bad"
+    }
+    if($response -eq "Retry"){Check-File -file $_}else{write-host "You Hit Cancel";read-host "press enter to exit" ;break}
+    
+}
+
+function Get-CheckTime(){
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
+    $form = New-Object “System.Windows.Forms.Form”;
+    $form.Width = 300;
+    $form.Height = 150;
+    $form.Text = "Number of second's to check (begin-end)";
+    $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen;
+
+    ##############Define text label1
+    $textLabel1 = New-Object “System.Windows.Forms.Label”;
+    $textLabel1.Left = 25;
+    $textLabel1.Top = 10;
+    $textLabel1.width = 300
+    $textLabel1.Text = "Number of second's to check (begin-end)";
+
+    ############Define text box1 for input
+    $textBox1 = New-Object “System.Windows.Forms.TextBox”;
+    $textBox1.Left = 25;
+    $textBox1.Top = 35;
+    $textBox1.width = 200;
+    $textBox1.Text = "10";
+
+    $button = New-Object “System.Windows.Forms.Button”;
+    $button.Left = 25;
+    $button.Top = 70;
+    $button.Width = 100;
+    $button.Text = “Ok”;
+    $button.DialogResult = [System.Windows.Forms.DialogResult]::ok
+
+    $eventHandler = [System.EventHandler]{
+    $textBox1.Text;
+    $form.Close();};
+    $button.Add_Click($eventHandler) ;
+
+    $form.KeyPreview = $True
+    $form.Add_KeyDown({
+        if ($_.KeyCode -eq "Enter") {
+            # if enter, perform click
+            $button.PerformClick()
+        }
+    })
+    $form.Add_Shown({$form.Activate(); $textBox1.focus()})
+    $form.Controls.Add($textLabel1);
+    $form.Controls.Add($textBox1);
+    $form.Controls.Add($button);
+    #$ret = $form.ShowDialog();
+
+    $Prop = New-Object System.Windows.Forms.Form -Property @{TopMost = $true }
+    $show = $form.ShowDialog($prop)
+    
+    
+
+    If ($show -eq "OK"){
+        Return $textBox1.Text
+    }
+    Else{
+        Write-Error "Operation cancelled by user."
+        break
+    }
+}
+
+function Ask-User($Title,$Message){
+   Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = $Title
+    $form.Size = New-Object System.Drawing.Size(380,260)
+    $form.StartPosition = 'CenterScreen'
+
+    $GoodButton = New-Object System.Windows.Forms.Button
+    $GoodButton.Location = New-Object System.Drawing.Point(75,120)
+    $GoodButton.Size = New-Object System.Drawing.Size(75,23)
+    $GoodButton.Text = 'Yes'
+    $GoodButton.DialogResult = [System.Windows.Forms.DialogResult]::yes
+
+    $form.AcceptButton = $GoodButton
+    $form.Controls.Add($GoodButton)
+
+    $BadButton = New-Object System.Windows.Forms.Button
+    $BadButton.Location = New-Object System.Drawing.Point(150,120)
+    $BadButton.Size = New-Object System.Drawing.Size(75,23)
+    $BadButton.Text = 'No'
+    $BadButton.DialogResult = [System.Windows.Forms.DialogResult]::no
+
+    $form.AcceptButton = $BadButton
+    $form.Controls.Add($BadButton)
+
+    $ReCheckButton = New-Object System.Windows.Forms.Button
+    $ReCheckButton.Location = New-Object System.Drawing.Point(225,120)
+    $ReCheckButton.Size = New-Object System.Drawing.Size(75,23)
+    $ReCheckButton.Text = 'Stop'
+    $ReCheckButton.DialogResult = [System.Windows.Forms.DialogResult]::cancel
+
+    $form.CancelButton = $ReCheckButton
+    $form.Controls.Add($ReCheckButton)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10,20)
+    $label.Size = New-Object System.Drawing.Size(480,180)
+    $label.Text = $Message
+
+    $form.Controls.Add($label)
+    $form.Topmost = $true
+
+    $Prop = New-Object System.Windows.Forms.Form -Property @{TopMost = $true }
+    $form.ShowDialog($prop)
+    #$form.ShowDialog()
+}
+
+function Start-Normalize($folder,$Mp3GainPath){
+
+    #New-Item -ItemType Directory -Path $($folder+"\Backup$RunTimeStamp") -ea SilentlyContinue |Out-Null
+    $items = Get-ChildItem -Path "$folder" -File -filter "*.mp3"
+    $totalitems = $items.count
+    $waitmessage =  "Normalizing File...Approx wait Time: " +(0..$totalitems| % -Begin {$Total = 0} -Process {$Total += (New-TimeSpan -second 2)} -End {$Total})
+    #$items| %{ Copy-Item $_.FullName -Destination ($folder + "\Backup$RunTimeStamp\" + $_.name) }|Out-Null 
+    $itemstodo = $totalitems
+    $items|%{$filename = $_ ;cls;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1); `
+        ffmpeg-normalize $filename.FullName -of $($folder + "\Normalize") --normalization-type peak --target-level 0 -c:a libmp3lame -b:a 256k -ext mp3} |Out-Null
+    #;ffmpeg -i $($folder + "\normalize\"+$filename.name) -af silenceremove=1:0:-50dB $($folder + "\normalize\Sile_"+$filename.name)}
+    #start-Process -Wait -NoNewWindow -FilePath $Mp3GainPath  -ArgumentList "/g 0 `"$filename`"" } 
+    return $($folder + "\Normalize")
+}
+
+function Remove-Silence($folder){
+    New-Item -Path "$($folder + "\Silence\") " -Force -ea SilentlyContinue |Out-Null
+    $items = Get-ChildItem -Path "$folder" -File -filter "*.mp3"
+    $totalitems = $items.count
+    $waitmessage = "Removing Silence in MP3... Please be quiet#joke"
+    $itemstodo = $totalitems
+    $items|%{cls;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
+        ffmpeg -i $($folder + "\"+$filename.name) -y -c:a libmp3lame -b:a 256k -af silenceremove=1:0:-50dB -loglevel warning -vsync 0 -qscale:a 6 $($folder + "\Silence\"+$filename.name) }|Out-Null
+    
+    return $($folder + "\Silence\")
+}
+
+function Fix-Id3andFileName ($folder){
+    $items = Get-ChildItem -Path "$folder" -File -filter "*.mp3"
+    $totalitems = $items.count
+    $waitmessage = "Renaming Files and updating ID3Tag... Please Wait"
+    $itemstodo = $totalitems
+    $items|%{cls;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
+        $file  = $filename
+        $CurrentTag = Get-Id3Tag $file.FullName
+        $Artist = $CurrentTag.Artists
+        $Title = $CurrentTag.Title
+        $NewName = "$Artist - $Title (SP-RIP-N)"
+        $ext = $file.Extension
+
+        $newfilename = Rename-Item -Path $file.FullName  -NewName $($NewName + $ext ) -PassThru
+        #write-host $newfilename
+        Start-Sleep 3
+        $tag = @{}
+        $tag.Add('Title',($Title + " (SP-RIP-N)"))
+        set-Id3Tag -Path "$($newfilename.FullName)" -Tags $tag 
+
+    }
+}
+
+function Retrive-Tag($Artist, $Title){
+[xml]$result = Invoke-WebRequest -Uri "https://musicbrainz.org/ws/2/release/?query=`"Going%20to%20Ibiza`"&artist=venga"
+
+$result.metadata.'release-list'.release.date
+}
+
+
+# ASk Folder to scan
+if(Test-Path "$TempFolder\PreviousLocation.json"){
+    $LastLocation = Get-Content $TempFolder\PreviousLocation.json |ConvertFrom-Json
+    if(Test-Path $LastLocation.FullName){
+        $Filepath = Get-Folder -initialDirectory $($LastLocation.FullName)
+        get-item -Path $Filepath|ConvertTo-Json| Set-Content -Path "$TempFolder\PreviousLocation.json" -Force
+    }else{
+       $Filepath = Get-Folder -initialDirectory $InitialFolder
+       get-item -Path $Filepath|ConvertTo-Json| Set-Content -Path "$TempFolder\PreviousLocation.json" -Force
+    }
+}else{
+    $Filepath = Get-Folder -initialDirectory $InitialFolder
+    get-item -Path $Filepath|ConvertTo-Json| Set-Content -Path "$TempFolder\PreviousLocation.json" -Force
+}
+
+if(!($Filepath)){
+    Write-Warning "No path selected"
+    Read-Host "Press enter to exit"
+    break
+}
+
+Set-Location $Filepath
+
+# Load stopwatch
+$StopWatch = New-Object System.Diagnostics.Stopwatch
+
+# Ask Check Time
+$CheckTime = Get-CheckTime
+
+# Log output
+Start-Transcript -Path ($Filepath+"\#1_MP3Analyzed-" + $RunTimeStamp+".log") -Append |Out-Null
+
+# Clear screen
+cls
+
+
+$NormalizeResponse = Ask-User -Title "Normalize Files?" -Message "
+    With this option Mp3Gain will normalize the files to 0dB.
+
+    A separated folder will be created `"Normalized`"
+    "
+if ($NormalizeResponse -eq "Yes"){
+   $NormFolder = Start-Normalize -folder $Filepath -Mp3GainPath $Mp3GainPath
+}elseif ($NormalizeResponse -eq "No"){
+    Write-host "Skipping normalize"
+}elseif ($NormalizeResponse -eq "Cancel"){
+    break
+}
+
+$RemoveSilenceResponse = Ask-User -Title "Remove Silence?" -Message "
+    With this option Silence will be removed from the MP3.
+
+    ffmpeg setting = silenceremove=1:0:-50dB
+
+    Which means:
+    Remove from the begin till level is abobe 0 DB
+    Remove at the end everything below -50 db
+    "
+if ($RemoveSilenceResponse -eq "Yes"){
+    if($NormFolder){
+        $SilenceFolder = Remove-Silence -folder $NormFolder
+    }else{
+        $SilenceFolder = Remove-Silence -folder $Filepath
+    }
+   
+}elseif ($RemoveSilenceResponse -eq "No"){
+    Write-host "Skipping Remove Silence"
+}elseif ($RemoveSilenceResponse -eq "Cancel"){
+    break
+}
+
+$FixID3TagResponse = Ask-User -Title "Fix ID3 and Filenames?" -Message "
+    With This option we will Correct the filename 
+    with `"Artist - Title (SP-RIP-N)`".
+
+    Files will be saved in last option sub-folder
+    "
+if ($FixID3TagResponse -eq "Yes"){
+   if($SilenceFolder){
+        Fix-Id3andFileName -folder $SilenceFolder
+   }elseif($NormFolder){
+        Fix-Id3andFileName -folder $NormFolder
+   }else{
+        Fix-Id3andFileName -folder $Filepath
+   }
+}elseif ($FixID3TagResponse -eq "No"){
+    Write-host "Skipping normalize"
+}elseif ($FixID3TagResponse -eq "Cancel"){
+    break
+}
+
+
+## Determen last folder
+   if($SilenceFolder){
+        $MessureFolder = $SilenceFolder
+   }elseif($NormFolder){
+        $MessureFolder = $NormFolder
+   }else{
+        $MessureFolder = $Filepath
+   }
+
+cls
+write-host "Loading File... Please Wait"
+
+# Analyse Folder and get ID3 Tag
+$ID3TagData = Get-MP3MetaData -Directory $MessureFolder
+if (!(($ID3TagData.count) -gt 0)){
+    Write-Warning "No files found"
+    Read-Host -Prompt "Press enter to exit"
+    break
+}
+
+#set Counters
+$Total = $ID3TagData.Count
+$BadCount = 0
+
+## set counter total time
+Clear-Variable TotalMP3Time -Force -ea SilentlyContinue |Out-Null
+$TotalMP3Time = (get-date -Hour 0 -Minute 0 -Second 0 -Millisecond 0)
+
+#clear sreen
+cls
+
+
+# Here we go, start stopwatch
+$StopWatch.Start()
+
+# Run Through Files
+$ID3TagData |% {
+    $Result = Check-File -file $_
+    write-host $Result
+    if($Result -eq "Bad"){    $BadCount = $BadCount + 1}
+    write-host "Count: $total / $($ID3TagData.Count) "
+    $total = $Total - 1
+    write-host " "
+    write-host " --- "
+    write-host " "
+    $TotalMP3Time += $_.length
+}
+
+# Were done. Stop The Time!
+$StopWatch.Stop()
+
+# Some math (proberbly wrong)
+$savedtimecalc = [timespan]::fromseconds( $(( ($TotalMP3Time.TimeOfDay.TotalSeconds) - (($ID3TagData.Count) * ($CheckTime*2)) )) ) 
+
+# Output some Details/Summary
+Write-Host " "
+Write-Host " "
+Write-Host " "
+Write-Host " "
+Write-Host " "
+Write-Host " "
+Write-Host " --------------- Summary -------------- "
+Write-Host " "
+write-host "Total`t`t`t $($ID3TagData.Count)"
+write-host "Total Bad:`t`t $BadCount"
+write-host "Total Runtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$StopWatch.Elapsed.hours,$StopWatch.Elapsed.minutes,$StopWatch.Elapsed.seconds))"
+write-host "Total playtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$TotalMP3Time.TimeOfDay.hours,$TotalMP3Time.TimeOfDay.minutes,$TotalMP3Time.TimeOfDay.seconds))"
+write-host "Saved Time: `t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$savedtimecalc.hours,$savedtimecalc.minutes,$savedtimecalc.seconds))"
+read-host -Prompt "Press enter to exit and open output folder."
+Start-Process explorer $MessureFolder
+stop-Transcript |Out-Null

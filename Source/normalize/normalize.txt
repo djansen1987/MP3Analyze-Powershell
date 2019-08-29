@@ -1,0 +1,215 @@
+NORMALIZE(1)                                         NORMALIZE(1)
+
+
+
+NAME
+       normalize - adjusts volume levels of audio files.
+
+SYNOPSIS
+       normalize [ options ]  [ -- ]  file...
+
+DESCRIPTION
+       normalize  is used to adjust the volume of wav audio files
+       to a standard volume level. This is useful for things like
+       creating  mp3  mixes,  where different recording levels on
+       different albums can cause the volume to vary greatly from
+       song to song.
+
+       normalize  operates  in two phases. In the first phase, it
+       analyzes the specified files as wav audio files, and  com-
+       putes  the  volume  of  each file. In the second phase, it
+       applies a volume adjustment  to  each  file  to  set  each
+       file's volume to a standard level.
+
+OPTIONS
+       -a, --amplitude=AMPLITUDE
+              Adjust  the  RMS  volume  to  the  target amplitude
+              AMPLITUDE; must be between 0.0 and 1.0. If a number
+              suffixed by "dB" or "dBFS" is specified, the ampli-
+              tude is assumed to be in decibels from full  scale.
+              The default is -12dBFS.
+
+       -b, --batch
+              Enable batch mode: see BATCH MODE, below.
+
+       -c, --compression
+              Deprecated.  In previous versions, this enabled the
+              limiter, but now the limiter is enabled by default.
+
+       --clipping
+              Disable the limiter, and just clip any samples that
+              are too large.  Same effect as -l 0dBFS.
+
+       --fractions
+              Display all values as decimal fractions instead  of
+              in  decibels.  By  default,  volume adjustments are
+              shown in decibels, and volume levels in dBFS, where
+              0  dBFS  is  the  level of a square wave of maximum
+              amplitude.
+
+       -g, --gain=GAIN
+              Skip the volume computation  phase:  don't  compute
+              the  volume  adjustment from the current volumes of
+              the files. Instead, just apply the given gain as  a
+              volume  adjustment  to all files. As a plain number
+              this is just a multiplier applied to  all  samples,
+              If a number suffixed by "dB" is specified, all vol-
+              umes are adjusted by that many decibels.
+
+       --id3-compat
+              Use this option when adjusting MPEG audio files  if
+              your  MP3  player  does not recognize ID3v2.4 tags.
+              See MPEG AUDIO ADJUSTMENT, below, for details.
+
+       --id3-unsync
+              Use this option when adjusting MPEG audio files  if
+              your  MP3  player does not recognize ID3v2 tags and
+              has trouble playing some ID3v2  tagged  MP3  files.
+              See MPEG AUDIO ADJUSTMENT, below, for details.
+
+       -l, --limiter=LEVEL
+              This  controls  the  behavior  of  the  limiter. By
+              default, all samples above -6dBFS  (0.5)  are  lim-
+              ited,  but  this  option sets the limiting level to
+              LEVEL. Setting LEVEL to 1 (or 0dBFS) does no limit-
+              ing  (clipping is done instead); setting LEVEL to 0
+              does limiting on all samples. The default value  is
+              recommended unless you know what you're doing.
+
+       -m, --mix
+              Enable  mix  mode: see MIX MODE, below.  Batch mode
+              and mix mode are mutually exclusive.
+
+       -n, --no-adjust
+              Compute and output the volume adjustment that would
+              set the volume to the target, but don't apply it to
+              any of the files (i.e. skip the second  phase).  If
+              you use this option, your files will not be altered
+              in any way.
+
+       --no-progress
+              Don't print any  progress  information.  All  other
+              messages  are  printed  as  normal according to the
+              verbosity level.
+
+       --peak Adjust using peak levels  instead  of  RMS  levels.
+              Each file will be adjusted so that its maximum sam-
+              ple is at full scale. This just gives  a  file  the
+              maximum  volume  possible without clipping; no nor-
+              malization is done.
+
+       -q, --quiet
+              Don't output progress information. Only error  mes-
+              sages are printed.
+
+       -t, --average-threshold=THRESHOLD
+              When  averaging volume levels for batch mode or mix
+              mode, throw out any  volumes  that  are  more  than
+              THRESHOLD  decibels  from the average. A high value
+              here (say, 50) will make sure that the  volumes  of
+              all files are considered in the average.
+
+       -T, --adjust-threshold=THRESHOLD
+              If  an  adjustment  to be made to a file is smaller
+              than THRESHOLD decibels, consider the file  already
+              normalized  and  don't  do  the adjustment. This is
+              0.125 by default, or 0 if the -g option is given.
+
+       -v, --verbose
+              Increase verbosity. This option can be repeated for
+              more messages.
+
+       -w, --output-bitwidth
+              Force  output files to have samples that are W bits
+              wide. This option is  ignored  when  adjusting  MP3
+              files.
+
+       -h, --help
+              Display usage information and exit.
+
+       -V, --version
+              Print version information and exit.
+
+       --     Terminate option list.
+
+MIX MODE
+       This mode is made especially for making mixed CD's and the
+       like. You want every song on the mix to be the  same  vol-
+       ume,  but it doesn't matter if they are the same volume as
+       the songs on some other mix you made  last  week.  In  mix
+       mode, average level of all the files is computed, and each
+       file is separately normalized to this average volume.
+
+BATCH MODE
+       When operating on a group of unrelated files, you  usually
+       want  all  of  them  at  the  same  level, and this is the
+       default behavior. However, a group of music files all from
+       the same album is generally meant to be listened to at the
+       relative volumes they were recorded at. In batch mode, all
+       the  specified files are considered to be part of a single
+       album and their relative volumes are  preserved.  This  is
+       done  by averaging the volumes of all the files, computing
+       a single adjustment  from  that,  and  applying  the  same
+       adjustment to all the files. Some analysis is also done so
+       that files with volumes  that  appear  to  be  statistical
+       aberrations  are  not  considered  in the average. This is
+       useful if you have albums (like many of the  author's)  in
+       which  there is one "quiet song" that throws off the aver-
+       age.
+
+MPEG AUDIO ADJUSTMENT
+       MP3 files are "adjusted"  by  setting  a  relative  volume
+       adjustment  frame  in their ID3 tags. There is a frame for
+       this, called "RVA2", that does exactly what we  want,  and
+       is  a  native  frame  in  ID3v2.4. Unfortunately, many MP3
+       players do not support v2.4 tags (including  xmms,  as  of
+       this  writing), and the RVA2 tag is not native in previous
+       ID3 versions. In fact, adding an RVA2 frame to a v2.3  tag
+       confuses some MP3 players. Therefore, we are left with two
+       choices when trying to add volume  adjustment  information
+       to an ID3 tag:
+
+       1.     Go  ahead  and  upgrade the tag to version 2.4, and
+              use RVA2 tags. This is the default behavior, in the
+              hope  that eventually MP3 players will support v2.4
+              tags and this won't be a problem anymore.
+
+       2.     Upgrade the tag to only  version  2.3.  Instead  of
+              RVA2,  use an "XRVA" tag with the same format as an
+              RVA2 tag. This isn't a native frame, but  since  it
+              starts  with  an  "X", it's considered experimental
+              and therefore legal, according to the ID3 spec. The
+              --id3-compat option turns on this behavior.
+
+       The  disadvantage  of  the  first  method is that your MP3
+       player may no longer read the ID3 tags on your files.  Bug
+       the  author of your favorite MP3 player to support ID3v2.4
+       tags!
+
+       The disadvantage of the second method  is  that  the  XRVA
+       frame  is  only  recognized by the xmms-rva plugin that is
+       packaged with normalize. On the other hand, I  don't  know
+       of  any MP3 players that recognize the RVA2 frame, either,
+       so it may not make any difference.
+
+       The other option related to  ID3  tags,  --id3-unsync,  is
+       only necessary for compatibility with old MP3 players that
+       don't recognize ID3v2 tags at all. If your MP3 player com-
+       plains  of  garbage  at  the  start of tagged files, or is
+       unable to play the files at  all,  turn  this  option  on.
+       This  option  should  never  hurt,  but if your MP3 player
+       knows about ID3v2 tags, you don't need it.
+
+CAVEATS
+       Note that your version of normalize must be compiled  with
+       MAD library support to analyze MP3 file volume levels.
+
+AUTHOR
+       Chris Vaill <chrisvaill@gmail.com>
+
+SEE ALSO
+       sox(1)
+
+
+
+                            2001-09-16               NORMALIZE(1)

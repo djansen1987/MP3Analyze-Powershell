@@ -1,0 +1,19 @@
+NOTES ON THE WIN32 BINARY
+
+ - I can provide very little support for the windows platform, as I
+   don't use it myself, except to compile this binary every now and
+   then.
+
+ - This binary was compiled using MinGW32, http://www.mingw.org/ .
+
+ - The audiofile and mad libraries have been compiled statically into
+   the binary.
+
+ - The source code is not included in this package, but is available
+   at http://www.nongnu.org/normalize/ .  The source code for the
+   audiofile and mad libraries are also available from their
+   respective home pages, which are linked to from the normalize page.
+   Just to be sure that this package is in compliance with the GPL, I
+   will also provide the source to audiofile and mad upon request.
+
+ - See the file README for general information on normalize.
