@@ -271,7 +271,7 @@ function Check-File($File){
     }else{
         write-host "You Hit Cancel"
         read-host "press enter to exit"
-        set-ending
+        Set-Ending
         break
     }
     
@@ -336,7 +336,7 @@ function Get-CheckTime(){
     }
     Else{
         Write-Error "Operation cancelled by user."
-        set-ending
+        Set-Ending
         break
     }
 }
@@ -656,15 +656,18 @@ $StopWatch.Start()
 
 # Finally Run Through Files
 $ID3TagData |% {
+    write-host "Count: $total / $($ID3TagData.Count)"
     $Result = Check-File -file $_
     write-host $Result
-    if($Result -eq "Bad"){    $BadCount = $BadCount + 1}
-    write-host "Count: $total / $($ID3TagData.Count) "
+    if($Result -eq "Bad"){
+        $BadCount = $BadCount + 1
+    }
     $total = $Total - 1
     write-host " "
     write-host " --- "
     write-host " "
     $TotalMP3Time += $_.length
+    cls
 }
 
 # We are at the end of the script. Let ending function know we made it
