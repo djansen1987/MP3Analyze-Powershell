@@ -1,4 +1,5 @@
-﻿write-host "Warming up... Please Wait"
+﻿Clear-Host
+write-host "Warming up... Please Wait"
 
 #--------- Set Parameters ----------#
 
@@ -181,7 +182,7 @@ function Get-Response($Name){
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'How Was the MP3'
-    $form.Size = New-Object System.Drawing.Size(380,220)
+    $form.Size = New-Object System.Drawing.Size(380,260)
     $form.StartPosition = 'CenterScreen'
 
     $GoodButton = New-Object System.Windows.Forms.Button
@@ -398,7 +399,7 @@ function Start-Normalize($folder,$Mp3GainPath){
     $waitmessage =  "Normalizing File...Approx wait Time: " +(0..$totalitems| % -Begin {$Total = 0} -Process {$Total += (New-TimeSpan -second 2)} -End {$Total})
     #$items| %{ Copy-Item $_.FullName -Destination ($folder + "\Backup$RunTimeStamp\" + $_.name) }|Out-Null 
     $itemstodo = $totalitems
-    $items|%{$filename = $_ ;cls;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1); `
+    $items|%{$filename = $_ ;Clear-Host;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1); `
         ffmpeg-normalize $filename.FullName -of $($folder + "\Normalize") --normalization-type peak --target-level 0 -c:a libmp3lame -b:a 256k -ext mp3} |Out-Null
     #;ffmpeg -i $($folder + "\normalize\"+$filename.name) -af silenceremove=1:0:-50dB $($folder + "\normalize\Sile_"+$filename.name)}
     #start-Process -Wait -NoNewWindow -FilePath $Mp3GainPath  -ArgumentList "/g 0 `"$filename`"" } 
@@ -411,7 +412,7 @@ function Remove-Silence($folder){
     $totalitems = $items.count
     $waitmessage = "Removing Silence in MP3... Please be quiet#joke"
     $itemstodo = $totalitems
-    $items|%{cls;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
+    $items|%{Clear-Host;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
         ffmpeg -i $($folder + "\"+$filename.name) -y -c:a libmp3lame -b:a 256k -af silenceremove=1:0:-50dB -loglevel warning -vsync 0 -qscale:a 6 $($folder + "\Silence\"+$filename.name) }|Out-Null
     
     return $($folder + "\Silence\")
@@ -422,7 +423,7 @@ function Fix-Id3andFileName ($folder){
     $totalitems = $items.count
     $waitmessage = "Renaming Files and updating ID3Tag... Please Wait"
     $itemstodo = $totalitems
-    $items|%{cls;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
+    $items|%{Clear-Host;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
         $file  = $filename
         $CurrentTag = Get-Id3Tag $file.FullName
         $Artist = $CurrentTag.Artists
@@ -554,7 +555,7 @@ if($Global:LogginEnabled){
 }
 
 # Clear screen
-cls
+Clear-Host
 
 # Ask if we should Normalize the files. If yes start function
 $NormalizeResponse = Ask-User -Title "Normalize Files?" -Message "
@@ -628,7 +629,7 @@ if ($FixID3TagResponse -eq "Yes"){
    }
 
 # Clear Screen and write text
-cls
+Clear-Host
 write-host "Loading File... Please Wait"
 
 # Analyse Folder and get ID3 Tag and file atributes
@@ -650,7 +651,7 @@ Clear-Variable TotalMP3Time -Force -ea SilentlyContinue |Out-Null
 $TotalMP3Time = (get-date -Hour 0 -Minute 0 -Second 0 -Millisecond 0)
 
 # Clear the screen once more to be sure
-cls
+Clear-Host
 
 # Here we go, start stopwatch. For reporting purphose
 $StopWatch.Start()
@@ -668,7 +669,7 @@ $ID3TagData |% {
     write-host " --- "
     write-host " "
     $TotalMP3Time += $_.length
-    cls
+    Clear-Host
 }
 
 # We are at the end of the script. Let ending function know we made it
