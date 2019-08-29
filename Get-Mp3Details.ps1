@@ -1,12 +1,29 @@
 ﻿write-host "Warming up... Please Wait"
-$Done = $false
+
+#--------- Set Parameters ----------#
+
+## Set Tempfolder for last folder use
 $TempFolder = "$env:TEMP\MP3Analyze"
+## If first run, no folder is set start in
+$InitialFolder = "C:\Temp\Sidify\Download-Temp\"
+## Set current date format and stamp
+$RunTimeStamp = $((get-date).ToString("yyyyMMdd"))
+## Log Powershell output to file in same directory
+$Global:LogginEnabled = $true ## $true = yes | $false = no
+
+#--------- DO Not Edit Below ----------#
+
+# Initial status
+$Done = $false
+# Load stopwatch
+$StopWatch = New-Object System.Diagnostics.Stopwatch
+
+# Find Tempfolder and create if not exist
 if(!(Test-Path $TempFolder)){
     New-Item -ItemType Directory $TempFolder
 }
 
-$InitialFolder = "C:\Temp\Sidify\Download-Temp\"
-$RunTimeStamp = $((get-date).ToString("yyyyMMdd"))
+# Check if ID3 powershell gallary module is installed. If not install else import
 $ID3Module = Get-Module -Name ID3
 if(!($ID3Module)){
     Import-Module -Name ID3
@@ -24,10 +41,8 @@ if(!($ID3Module)){
     }
 }
 
-
+# Find VLC path
 $vlcinstall = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*vlc*"}
-$Mp3Gain = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*gain*"}
-
 if(!($vlcinstall)){
     if(Test-Path "C:\Program Files\VideoLAN\VLC\vlc.exe"){
         $vlcPath = "C:\Program Files\VideoLAN\VLC\vlc.exe"
@@ -43,6 +58,8 @@ if(!($vlcinstall)){
     $vlcPath = "$($vlcinstall.InstallLocation)\vlc.exe"    
 }
 
+# Find MP3Gain Path
+$Mp3Gain = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*gain*"}
 if(!($Mp3Gain)){
     if(Test-Path "C:\Program Files\MP3Gain\mp3gain.exe"){
         $Mp3GainPath = "C:\Program Files\MP3Gain\mp3gain.exe"
@@ -57,11 +74,9 @@ if(!($Mp3Gain)){
 }else{
     $Mp3GainPath = "$($Mp3Gain.InstallLocation)\mp3gain.exe"    
 }
-#$CheckTime = "10"
-#$Filepath = "C:\Temp\TuneTest\"
 
-#--------- DO Not Edit Below ----------#
 
+#--------- Begin of Functions ----------#
 
 Function Get-Folder($initialDirectory){
 
@@ -226,12 +241,12 @@ function Start-Mp3($data){
         Write-host $_.name " (Begin) "
         write-host `"$($_.Fullname)`"
         #Show-CurrentSong -Name ($_.name) -status "Begin" -time 10
-        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
-#        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
+#        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
+        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
         #Show-CurrentSong -Name ($_.name) -status "Ending" -time 10
         Write-host $_.name " (Ending) "
- #       Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
-        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+       Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+#        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
     }
     catch{}
     
@@ -417,7 +432,7 @@ function Fix-Id3andFileName ($folder){
 
         $newfilename = Rename-Item -Path $file.FullName  -NewName $($NewName + $ext ) -PassThru
         #write-host $newfilename
-        Start-Sleep 3
+        Start-Sleep 1
         $tag = @{}
         $tag.Add('Title',($Title + " (SP-RIP-N)"))
         set-Id3Tag -Path "$($newfilename.FullName)" -Tags $tag 
@@ -433,8 +448,7 @@ function Retrive-Tag($File,$Artist, $Title){
     #$result.metadata.'release-list'.release.date
 }
 
-
-function Set-Ending(){
+function Set-Ending($LogginEnabled){
     # Were done. Stop The Time!
     $StopWatch.Stop()
 
@@ -462,13 +476,19 @@ function Set-Ending(){
     }else{
         Write-Warning "Failed or Cancelled"
     }
-    stop-Transcript |Out-Null
+    if($Global:LogginEnabled){
+        stop-Transcript |Out-Null
+    }
 }
-#Retrive-Tag -File $file
-#
-#$file = Get-Item -Path 'S:\Download-Temp\90s\Ain''t Nobody.mp3'
 
-# ASk Folder to scan
+#--------- End of Functions ----------#
+#--------- End of Functions ----------#
+#--------- End of Functions ----------#
+
+
+#--------- Start of Process ----------#
+
+# Ask Folder to scan user. Also last choosen path from temp folder
 if(Test-Path "$TempFolder\PreviousLocation.json"){
     $LastLocation = Get-Content $TempFolder\PreviousLocation.json |ConvertFrom-Json
     if(Test-Path $LastLocation.FullName){
@@ -483,6 +503,7 @@ if(Test-Path "$TempFolder\PreviousLocation.json"){
     get-item -Path $Filepath|ConvertTo-Json| Set-Content -Path "$TempFolder\PreviousLocation.json" -Force
 }
 
+# Check if choosen path really exist before continue. If exist check filenames for bad Characters and replace
 if(!($Filepath)){
     Write-Warning "No path selected"
     Read-Host "Press enter to exit"
@@ -520,21 +541,21 @@ $newname
      }
 }
 
+# Set choosen location
 Set-Location $Filepath
 
-# Load stopwatch
-$StopWatch = New-Object System.Diagnostics.Stopwatch
-
-# Ask Check Time
+# Ask begin and end check time
 $CheckTime = Get-CheckTime
 
-# Log output
-Start-Transcript -Path ($Filepath+"\#1_MP3Analyzed-" + $RunTimeStamp+".log") -Append |Out-Null
+# Start Logging to output file in choosen folder
+if($Global:LogginEnabled){
+    Start-Transcript -Path ($Filepath+"\#1_MP3Analyzed-" + $RunTimeStamp+".log") -Append |Out-Null
+}
 
 # Clear screen
 cls
 
-
+# Ask if we should Normalize the files. If yes start function
 $NormalizeResponse = Ask-User -Title "Normalize Files?" -Message "
     With this option Mp3Gain will normalize the files to 0dB.
 
@@ -549,6 +570,7 @@ if ($NormalizeResponse -eq "Yes"){
     break
 }
 
+# Ask if we should Remove silence from begin and end. If yes start function
 $RemoveSilenceResponse = Ask-User -Title "Remove Silence?" -Message "
     With this option Silence will be removed from the MP3.
 
@@ -572,6 +594,7 @@ if ($RemoveSilenceResponse -eq "Yes"){
     break
 }
 
+# Ask if we should fix the Filename and ID3 Tag. If yes start function
 $FixID3TagResponse = Ask-User -Title "Fix ID3 and Filenames?" -Message "
     With This option we will Correct the filename 
     with `"Artist - Title (SP-RIP-N)`".
@@ -594,7 +617,7 @@ if ($FixID3TagResponse -eq "Yes"){
 }
 
 
-## Determen last folder
+## Determen what options have been run and find right folder to process
    if($SilenceFolder){
         $MessureFolder = $SilenceFolder
    }elseif($NormFolder){
@@ -603,34 +626,35 @@ if ($FixID3TagResponse -eq "Yes"){
         $MessureFolder = $Filepath
    }
 
+# Clear Screen and write text
 cls
 write-host "Loading File... Please Wait"
 
-# Analyse Folder and get ID3 Tag
+# Analyse Folder and get ID3 Tag and file atributes
 $ID3TagData = Get-MP3MetaData -Directory $MessureFolder
+
+# Check if we found files in the above folder
 if (!(($ID3TagData.count) -gt 0)){
     Write-Warning "No files found"
     Read-Host -Prompt "Press enter to exit"
     break
 }
 
-#set Counters
+# Set Counters for reporting
 $Total = $ID3TagData.Count
 $BadCount = 0
 
-## set counter total time
+# Set counter total time
 Clear-Variable TotalMP3Time -Force -ea SilentlyContinue |Out-Null
 $TotalMP3Time = (get-date -Hour 0 -Minute 0 -Second 0 -Millisecond 0)
 
-#clear sreen
+# Clear the screen once more to be sure
 cls
 
-
-# Here we go, start stopwatch
+# Here we go, start stopwatch. For reporting purphose
 $StopWatch.Start()
 
-
-# Run Through Files
+# Finally Run Through Files
 $ID3TagData |% {
     $Result = Check-File -file $_
     write-host $Result
@@ -642,6 +666,11 @@ $ID3TagData |% {
     write-host " "
     $TotalMP3Time += $_.length
 }
+
+# We are at the end of the script. Let ending function know we made it
 $Done = $true
-set-ending
-$ID3TagData |?{$_.title -like "*around*"}|select fullname,title
+
+# Stop loggin. Stop Stopwatch. Output Reporting. Open destination
+Set-Ending
+
+#### It's a wrap ####
