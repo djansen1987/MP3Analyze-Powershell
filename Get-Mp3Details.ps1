@@ -1,6 +1,5 @@
 ﻿Clear-Host
 write-host "Warming up... Please Wait"
-
 #--------- Set Parameters ----------#
 
 ## Set Tempfolder for last folder use
@@ -424,6 +423,7 @@ function Fix-Id3andFileName ($folder,$Prefix){
     $waitmessage = "Renaming Files and updating ID3Tag... Please Wait"
     $itemstodo = $totalitems
     $items|%{Clear-Host;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
+        Write-Host $Prefix
         $file  = $filename
         $CurrentTag = Get-Id3Tag $file.FullName
         $Artist = $CurrentTag.Artists
@@ -436,7 +436,7 @@ function Fix-Id3andFileName ($folder,$Prefix){
         #write-host $newfilename
         Start-Sleep 1
         $tag = @{}
-        $tag.Add('Title',($Title + " (SP-RIP-N)"))
+        $tag.Add('Title',($Title + " $Prefix"))
         set-Id3Tag -Path "$($newfilename.FullName)" -Tags $tag 
 
     }
@@ -551,7 +551,8 @@ $CheckTime = Get-CheckTime
 
 # Start Logging to output file in choosen folder
 if($Global:LogginEnabled){
-    Start-Transcript -Path ($Filepath+"\#1_MP3Analyzed-" + $RunTimeStamp+".log") -Append |Out-Null
+    New-Item -ItemType Directory -Path ($Filepath+"\Log\") -ErrorAction SilentlyContinue|Out-Null
+    Start-Transcript -Path ($Filepath+"\Log\#1_MP3Analyzed-" + $RunTimeStamp+".log") -Append |Out-Null
 }
 
 # Clear screen
@@ -605,11 +606,11 @@ $FixID3TagResponse = Ask-User -Title "Fix ID3 and Filenames?" -Message "
     "
 if ($FixID3TagResponse -eq "Yes"){
    if($SilenceFolder){
-        Fix-Id3andFileName -folder $SilenceFolder
+        Fix-Id3andFileName -folder $SilenceFolder -Prefix $Prefix
    }elseif($NormFolder){
-        Fix-Id3andFileName -folder $NormFolder
+        Fix-Id3andFileName -folder $NormFolder -Prefix $Prefix
    }else{
-        Fix-Id3andFileName -folder $Filepath
+        Fix-Id3andFileName -folder $Filepath -Prefix $Prefix
    }
 }elseif ($FixID3TagResponse -eq "No"){
     Write-host "Skipping normalize"
