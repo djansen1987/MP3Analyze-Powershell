@@ -11,7 +11,7 @@ Download/clone script and start
 [ffmpeg](https://ffmpeg.org/download.html) (added in windows environment path)<br />
 [python](https://www.python.org/downloads/)<br />
 [ffmpeg-normalize](https://pypi.org/project/ffmpeg-normalize/)<br />
-[vlv](https://www.videolan.org/vlc/download-windows.nl.html)<br />
+[vlc](https://www.videolan.org/vlc/download-windows.nl.html)<br />
 
 ## Donation
 
