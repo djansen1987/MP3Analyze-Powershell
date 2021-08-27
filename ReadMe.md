@@ -8,10 +8,10 @@ This script will optimize and analyze your mp3 files.
 Download/clone script and start
 
 ## Requirements
-[ffmpeg](https://ffmpeg.org/download.html) (added in windows environment path)
-[python](https://www.python.org/downloads/)
-[ffmpeg-normalize](https://pypi.org/project/ffmpeg-normalize/)
-[vlv](https://www.videolan.org/vlc/download-windows.nl.html)
+[ffmpeg](https://ffmpeg.org/download.html) (added in windows environment path)<br />
+[python](https://www.python.org/downloads/)<br />
+[ffmpeg-normalize](https://pypi.org/project/ffmpeg-normalize/)<br />
+[vlv](https://www.videolan.org/vlc/download-windows.nl.html)<br />
 
 ## Donation
 
