@@ -43,6 +43,24 @@ if(!($ID3Module)){
     }
 }
 
+#check ffmpeg & ffmpeg-nomalize path
+$path = $env:Path -split ";"
+$path|?{$_ -like "*ffmpeg.exe"}
+$ffmpeg_normalize = pip list| ? {$_ -like "*ffmpeg-normalize*"}
+$ffmpeg_status = 0
+if(!($path)){
+    Write-Warning "FFmpeg not fount in Path please install"
+    $ffmpeg_status = 2
+}
+if(!($ffmpeg_normalize)){
+    Write-Warning "ffmpeg-normalize not fount in Path please install"
+    $ffmpeg_status = 3
+}
+if($ffmpeg_status -ne 0){
+    warning "please fix ffmpeg, details: https://github.com/djansen1987/MP3Analyze-Powershell"
+    break
+}
+
 # Find VLC path
 $vlcinstall = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*vlc*"}
 if(!($vlcinstall)){
