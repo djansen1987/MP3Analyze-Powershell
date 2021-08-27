@@ -2,7 +2,7 @@
 write-host "Warming up... Please Wait"
 #--------- Set Parameters ----------#
 
-## Set Tempfolder for last folder use
+## Set Tempfolder for last folder use test
 $TempFolder = "$env:TEMP\MP3Analyze"
 ## If first run, no folder is set start in
 $InitialFolder = "C:\Temp\Sidify\Download-Temp\"
@@ -29,6 +29,7 @@ $ID3Module = Get-Module -Name ID3
 if(!($ID3Module)){
     Import-Module -Name ID3
 }
+
 $ID3Module = Get-Module -Name ID3
 if(!($ID3Module)){
     $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -59,24 +60,6 @@ if(!($vlcinstall)){
     $vlcPath = "$($vlcinstall.InstallLocation)\vlc.exe"    
 }
 
-# Find MP3Gain Path
-$Mp3Gain = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*gain*"}
-if(!($Mp3Gain)){
-    if(Test-Path "C:\Program Files\MP3Gain\mp3gain.exe"){
-        $Mp3GainPath = "C:\Program Files\MP3Gain\mp3gain.exe"
-    }elseif(Test-Path "C:\Program Files (x86)\MP3Gain\mp3gain.exe"){
-        $Mp3GainPath = "C:\Program Files (x86)\MP3Gain\mp3gain.exe"
-    }else{
-        write-host "MP3Gain not found, please install vlc"
-        read-host -Prompt "Press enter to exit."
-        (New-Object -Com Shell.Application).Open("http://mp3gain.sourceforge.net")        
-        break
-    }
-}else{
-    $Mp3GainPath = "$($Mp3Gain.InstallLocation)\mp3gain.exe"    
-}
-
-
 #--------- Begin of Functions ----------#
 
 Function Get-Folder($initialDirectory){
@@ -91,15 +74,7 @@ Function Get-Folder($initialDirectory){
 
         [void]$FolderBrowser.ShowDialog($Prop)  
         Return $FolderBrowser.SelectedPath
-    
-        
-        #If ($FolderBrowser -eq "OK"){
-        #    Return $FolderBrowser.SelectedPath
-        #}
-        #Else{
-        #    Write-Error "Operation cancelled by user."
-        #    break
-        #}
+
 }
 
 Function Get-MP3MetaData{
@@ -240,13 +215,9 @@ function Start-Mp3($data){
     try{
         $startEnd = ([DateTime]$_.Length).AddSeconds(-$CheckTime).TimeOfDay.TotalSeconds
         Write-host "$($_.name)  (Begin)" -ForegroundColor Cyan
-        #Show-CurrentSong -Name ($_.name) -status "Begin" -time 10
-#        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
         Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
-        #Show-CurrentSong -Name ($_.name) -status "Ending" -time 10
         Write-host "$($_.name)  (Ending)" -ForegroundColor Cyan
         Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
-#        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
     }
     catch{}
     
@@ -390,29 +361,41 @@ function Ask-User($Title,$Message){
     #$form.ShowDialog()
 }
 
-function Start-Normalize($folder,$Mp3GainPath){
+function Start-Normalize($folder){
 
-    #New-Item -ItemType Directory -Path $($folder+"\Backup$RunTimeStamp") -ea SilentlyContinue |Out-Null
     $items = Get-ChildItem -Path "$folder" -File -filter "*.mp3"
     $totalitems = $items.count
-    $waitmessage =  "Normalizing File...Approx wait Time: " +(0..$totalitems| % -Begin {$Total = 0} -Process {$Total += (New-TimeSpan -second 2)} -End {$Total})
-    #$items| %{ Copy-Item $_.FullName -Destination ($folder + "\Backup$RunTimeStamp\" + $_.name) }|Out-Null 
     $itemstodo = $totalitems
-    $items|%{$filename = $_ ;Clear-Host;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1); `
-        ffmpeg-normalize $filename.FullName -of $($folder + "\Normalize") --normalization-type peak --target-level 0 -c:a libmp3lame -b:a 256k -ext mp3} |Out-Null
-    #;ffmpeg -i $($folder + "\normalize\"+$filename.name) -af silenceremove=1:0:-50dB $($folder + "\normalize\Sile_"+$filename.name)}
-    #start-Process -Wait -NoNewWindow -FilePath $Mp3GainPath  -ArgumentList "/g 0 `"$filename`"" } 
+
+    $waitmessage =  "Normalizing File...Approx wait Time: " +(0..$totalitems| % -Begin {$Total = 0} -Process {$Total += (New-TimeSpan -second 2)} -End {$Total})
+
+    $items|%{
+        $filename = $_ 
+        Clear-Host
+        write-host $waitmessage
+        Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1)
+        ffmpeg-normalize $filename.FullName -of $($folder + "\Normalize") --normalization-type peak --target-level 0 -c:a libmp3lame -b:a 256k -ext mp3
+    }
+
     return $($folder + "\Normalize")
 }
 
 function Remove-Silence($folder){
     New-Item -Path "$($folder + "\Silence\") " -Force -ea SilentlyContinue |Out-Null
     $items = Get-ChildItem -Path "$folder" -File -filter "*.mp3"
+
     $totalitems = $items.count
-    $waitmessage = "Removing Silence in MP3... Please be quiet#joke"
     $itemstodo = $totalitems
-    $items|%{Clear-Host;$filename = $_ ;write-host $waitmessage;Write-Host "$itemstodo / $totalitems  -  $filename";$itemstodo = ($itemstodo - 1);`
-        ffmpeg -i $($folder + "\"+$filename.name) -y -c:a libmp3lame -b:a 256k -af silenceremove=1:0:-50dB -loglevel warning -vsync 0 -qscale:a 6 $($folder + "\Silence\"+$filename.name) }|Out-Null
+    $waitmessage = "Removing Silence in MP3..."
+
+    $items|%{
+        Clear-Host
+        $filename = $_ 
+        write-host $waitmessage
+        Write-Host "$itemstodo / $totalitems  -  $filename"
+        $itemstodo = ($itemstodo - 1)
+        ffmpeg -i $($folder + "\"+$filename.name) -y -c:a libmp3lame -b:a 256k -af silenceremove=1:0:-50dB -loglevel warning $($folder + "\Silence\"+$filename.name) 
+    }
     
     return $($folder + "\Silence\")
 }
@@ -427,13 +410,14 @@ function Fix-Id3andFileName ($folder,$Prefix){
         $file  = $filename
         $CurrentTag = Get-Id3Tag $file.FullName
         $Artist = $CurrentTag.Artists
+
         # Strip Title and replace Characters
         $Title = $($CurrentTag.Title).replace("7`"","7 inch").replace("12`"","12 inch").replace("?","").replace("`/"," ").replace("`"","").split('[')[0].split(']')[0]
         $NewName = "$Artist - $Title $Prefix"
         $ext = $file.Extension
 
         $newfilename = Rename-Item -Path $file.FullName  -NewName $($NewName + $ext ) -PassThru
-        #write-host $newfilename
+
         Start-Sleep 1
         $tag = @{}
         $tag.Add('Title',($Title + " $Prefix"))
@@ -488,6 +472,12 @@ function Set-Ending(){
 #--------- End of Functions ----------#
 
 
+
+
+
+
+
+
 #--------- Start of Process ----------#
 
 # Ask Folder to scan user. Also last choosen path from temp folder
@@ -524,13 +514,13 @@ if(!($Filepath)){
             $newname = ($_.FullName.split('[')[0].split(']')[0]+ $_.Extension)
             Write-Warning "Bad File name found $($_.FullName)"
             Write-Warning "replace with $newname"
-            $BadFileResponse = Ask-User -Title "Warning Bad File Name" -Message "Bad File name found:
-$($_.FullName)
+            $BadFileResponse = Ask-User -Title "Warning Bad File Name" -Message "                Bad File name found:
+                $($_.FullName)
 
-replace with:
-$newname
+                replace with:
+                $newname
 
-"
+                "
             if($BadFileResponse -eq "yes"){
                 Move-Item -LiteralPath $_.FullName  $newname
             }elseif ($BadFileResponse -eq "No" -or $BadFileResponse -eq "Cancel"){
@@ -558,76 +548,104 @@ if($Global:LogginEnabled){
 # Clear screen
 Clear-Host
 
-# Ask if we should Normalize the files. If yes start function
-$NormalizeResponse = Ask-User -Title "Normalize Files?" -Message "
-    With this option Mp3Gain will normalize the files to 0dB.
-
-    A separated folder will be created `"Normalized`"
+# Ask To do all fixes at once
+$FixAllResponse = Ask-User -Title "Normalize Files?" -Message "
+Would you like to do all fiexes at once? (Normalize, remove Silence, optimize ID3)
     "
-if ($NormalizeResponse -eq "Yes"){
-   $NormFolder = Start-Normalize -folder $Filepath -Mp3GainPath $Mp3GainPath
-}elseif ($NormalizeResponse -eq "No"){
-    Write-host "Skipping normalize"
-}elseif ($NormalizeResponse -eq "Cancel"){
-    set-ending
-    break
-}
+if ($FixAllResponse -eq "Yes"){
+    
+    Write-Host "Start Normalize";Start-Sleep 1
+    $NormFolder = Start-Normalize -folder $Filepath
+    
+    Write-Host "Start Remove Silence";Start-Sleep 1
+    $SilenceFolder = Remove-Silence -folder $NormFolder
 
-# Ask if we should Remove silence from begin and end. If yes start function
-$RemoveSilenceResponse = Ask-User -Title "Remove Silence?" -Message "
-    With this option Silence will be removed from the MP3.
+    Write-Host "Start Optimize ID3";Start-Sleep 1
+    Fix-Id3andFileName -folder $SilenceFolder -Prefix $Prefix
 
-    ffmpeg setting = silenceremove=1:0:-50dB
+}elseif ($FixAllResponse -eq "No"){
 
-    Which means:
-    Remove from the begin till level is abobe 0 DB
-    Remove at the end everything below -50 db
-    "
-if ($RemoveSilenceResponse -eq "Yes"){
-    if($NormFolder){
-        $SilenceFolder = Remove-Silence -folder $NormFolder
-    }else{
-        $SilenceFolder = Remove-Silence -folder $Filepath
+
+    # Ask if we should Normalize the files. If yes start function
+    $NormalizeResponse = Ask-User -Title "Normalize Files?" -Message "
+        With this option Mp3Gain will normalize the files to 0dB.
+
+        A separated folder will be created `"Normalized`"
+        "
+    if ($NormalizeResponse -eq "Yes"){
+       $NormFolder = Start-Normalize -folder $Filepath
+    }elseif ($NormalizeResponse -eq "No"){
+        Write-host "Skipping normalize"
+    }elseif ($NormalizeResponse -eq "Cancel"){
+        set-ending
+        break
     }
+
+
+    # Ask if we should Remove silence from begin and end. If yes start function
+    $RemoveSilenceResponse = Ask-User -Title "Remove Silence?" -Message "
+        With this option Silence will be removed from the MP3.
+
+        ffmpeg setting = silenceremove=1:0:-50dB
+
+        Which means:
+        Remove from the begin till level is abobe 0 DB
+        Remove at the end everything below -50 db
+        "
+    if ($RemoveSilenceResponse -eq "Yes"){
+        if($NormFolder){
+            $SilenceFolder = Remove-Silence -folder $NormFolder
+        }else{
+            $SilenceFolder = Remove-Silence -folder $Filepath
+        }
    
-}elseif ($RemoveSilenceResponse -eq "No"){
-    Write-host "Skipping Remove Silence"
-}elseif ($RemoveSilenceResponse -eq "Cancel"){
-    set-ending
-    break
-}
+    }elseif ($RemoveSilenceResponse -eq "No"){
+        Write-host "Skipping Remove Silence"
+    }elseif ($RemoveSilenceResponse -eq "Cancel"){
+        set-ending
+        break
+    }
 
-# Ask if we should fix the Filename and ID3 Tag. If yes start function
-$FixID3TagResponse = Ask-User -Title "Fix ID3 and Filenames?" -Message "
-    With This option we will Correct the filename 
-    with `"Artist - Title (SP-RIP-N)`".
 
-    Files will be saved in last option sub-folder
-    "
-if ($FixID3TagResponse -eq "Yes"){
-   if($SilenceFolder){
-        Fix-Id3andFileName -folder $SilenceFolder -Prefix $Prefix
-   }elseif($NormFolder){
-        Fix-Id3andFileName -folder $NormFolder -Prefix $Prefix
-   }else{
-        Fix-Id3andFileName -folder $Filepath -Prefix $Prefix
-   }
-}elseif ($FixID3TagResponse -eq "No"){
-    Write-host "Skipping normalize"
-}elseif ($FixID3TagResponse -eq "Cancel"){
+    # Ask if we should fix the Filename and ID3 Tag. If yes start function
+    $FixID3TagResponse = Ask-User -Title "Fix ID3 and Filenames?" -Message "
+        With This option we will Correct the filename 
+        with `"Artist - Title (SP-RIP-N)`".
+
+        Files will be saved in last option sub-folder
+        "
+    if ($FixID3TagResponse -eq "Yes"){
+        if($SilenceFolder){
+            Fix-Id3andFileName -folder $SilenceFolder -Prefix $Prefix
+        }elseif($NormFolder){
+            Fix-Id3andFileName -folder $NormFolder -Prefix $Prefix
+        }else{
+            Fix-Id3andFileName -folder $Filepath -Prefix $Prefix
+        }
+    }elseif ($FixID3TagResponse -eq "No"){
+        Write-host "Skipping normalize"
+    }elseif ($FixID3TagResponse -eq "Cancel"){
+        set-ending
+        break
+    }
+
+
+}elseif ($FixAllResponse -eq "Cancel"){
     set-ending
     break
 }
 
 
 ## Determen what options have been run and find right folder to process
-   if($SilenceFolder){
-        $MessureFolder = $SilenceFolder
-   }elseif($NormFolder){
-        $MessureFolder = $NormFolder
-   }else{
-        $MessureFolder = $Filepath
-   }
+if($SilenceFolder){
+    $MessureFolder = $SilenceFolder
+}elseif($NormFolder){
+    $MessureFolder = $NormFolder
+}else{
+    $MessureFolder = $Filepath
+}
+
+
 
 # Clear Screen and write text
 Clear-Host
