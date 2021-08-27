@@ -1,4 +1,4 @@
-[![https://img.shields.io/badge/Made%20with-Powershell-blue)](https://docs.microsoft.com/nl-nl/powershell/scripting/overview?view=powershell-7.1) [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/djansen1987/)
+[![Powershell](https://img.shields.io/badge/Made%20with-Powershell-blue)](https://docs.microsoft.com/nl-nl/powershell/scripting/overview?view=powershell-7.1) [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/djansen1987/)
 
 ## MP3 Analyser
 This script will optimize and analyze your mp3 files.
