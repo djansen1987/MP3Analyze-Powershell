@@ -14,32 +14,13 @@ $Prefix = "(SP-RIP-N)"
 
 #--------- DO Not Edit Below ----------#
 
+
 # Initial status
 $Done = $false
-# Load stopwatch
-$StopWatch = New-Object System.Diagnostics.Stopwatch
 
-# Find Tempfolder and create if not exist
-if(!(Test-Path $TempFolder)){
-    New-Item -ItemType Directory $TempFolder
-}
-# Find VLC path
-$vlcinstall = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*vlc*"}
-if(!($vlcinstall)){
-    if(Test-Path "C:\Program Files\VideoLAN\VLC\vlc.exe"){
-        $vlcPath = "C:\Program Files\VideoLAN\VLC\vlc.exe"
-    }elseif(Test-Path "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"){
-        $vlcPath = "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
-    }else{
-        write-host "vlc not found, please install vlc"
-        read-host -Prompt "Press enter to exit."
-        (New-Object -Com Shell.Application).Open("https://www.videolan.org/vlc/")        
-        break
-    }
-}else{
-    $vlcPath = "$($vlcinstall.InstallLocation)\vlc.exe"    
-}
-
+#mediaplayer
+Add-Type -AssemblyName presentationCore
+$mediaPlayer = New-Object system.windows.media.mediaplayer
 
 #--------- Begin of Functions ----------#
 
@@ -56,60 +37,9 @@ Function Get-Folder($initialDirectory){
         [void]$FolderBrowser.ShowDialog($Prop)  
         Return $FolderBrowser.SelectedPath
     
-        
-        #If ($FolderBrowser -eq "OK"){
-        #    Return $FolderBrowser.SelectedPath
-        #}
-        #Else{
-        #    Write-Error "Operation cancelled by user."
-        #    break
-        #}
 }
-Function Get-MP3MetaData{
-    [CmdletBinding()]
-    [Alias()]
-    [OutputType([Psobject])]
-    Param
-    (
-        [String] [Parameter(Mandatory=$true, ValueFromPipeline=$true)] $Directory
-    )
 
-    Begin
-    {
-        $shell = New-Object -ComObject "Shell.Application"
-    }
-    Process
-    {
 
-        Foreach($Dir in $Directory)
-        {
-            $ObjDir = $shell.NameSpace($Dir)
-            $Files = Get-ChildItem $Dir| ?{$_.Extension -in '.mp3','.mp4'}
-
-            Foreach($File in $Files)
-            {
-                $ObjFile = $ObjDir.parsename($File.Name)
-                $MetaData = @{}
-                $MP3 = ($ObjDir.Items()|?{$_.path -like "*.mp3" -or $_.path -like "*.mp4"})
-                $PropertArray = 0,1,2,12,13,14,15,16,17,18,19,20,21,22,27,28,36,220,223
-            
-                Foreach($item in $PropertArray)
-                { 
-                    If($ObjDir.GetDetailsOf($ObjFile, $item)) #To avoid empty values
-                    {
-                        $MetaData[$($ObjDir.GetDetailsOf($MP3,$item))] = $ObjDir.GetDetailsOf($ObjFile, $item)
-                    }
-                 
-                }
-
-                New-Object psobject -Property $MetaData |select *, @{n="Directory";e={$Dir}}, @{n="Fullname";e={Join-Path "$Dir" "$($File.Name)" -Resolve}}, @{n="Extension";e={$File.Extension}}
-            }
-        }
-    }
-    End
-    {
-    }
-}
 function Ask-User($Title,$Message){
    Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -159,34 +89,6 @@ function Ask-User($Title,$Message){
     #$form.ShowDialog()
 }
 
-
-Function Show-CurrentSong ($Name,$status,$time) {
-
-    Add-Type -AssemblyName System.Windows.Forms    
-
-    # Build Form
-    $objForm = New-Object System.Windows.Forms.Form
-    $objForm.Text = $status
-    $objForm.Size = New-Object System.Drawing.Size(220,100)
-
-    # Add Label
-    $objLabel = New-Object System.Windows.Forms.Label
-    $objLabel.Location = New-Object System.Drawing.Size(80,20) 
-    $objLabel.Size = New-Object System.Drawing.Size(100,20)
-    $objLabel.Text = $Name
-    $objForm.Controls.Add($objLabel)
-    
-    # Show the form
-    $objForm.Show()| Out-Null
-
-    # wait 5 seconds
-    Start-Sleep -Seconds $time
-
-    # destroy form
-    $objForm.Close() | Out-Null
-    
-}
-
 function Get-Response($Name){
     Add-Type -AssemblyName System.Windows.Forms
 
@@ -197,17 +99,8 @@ function Get-Response($Name){
     $form.Size = New-Object System.Drawing.Size(380,230)
     $form.StartPosition = 'CenterScreen'
 
-    $TopButton = New-Object System.Windows.Forms.Button
-    $TopButton.Location = New-Object System.Drawing.Point(0,120)
-    $TopButton.Size = New-Object System.Drawing.Size(75,23)
-    $TopButton.Text = 'Top'
-    $TopButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
-
-    $form.AcceptButton = $TopButton
-    $form.Controls.Add($TopButton)
-
     $GoodButton = New-Object System.Windows.Forms.Button
-    $GoodButton.Location = New-Object System.Drawing.Point(75,120)
+    $GoodButton.Location = New-Object System.Drawing.Point(0,120)
     $GoodButton.Size = New-Object System.Drawing.Size(75,23)
     $GoodButton.Text = 'Goed'
     $GoodButton.DialogResult = [System.Windows.Forms.DialogResult]::yes
@@ -215,6 +108,14 @@ function Get-Response($Name){
     $form.AcceptButton = $GoodButton
     $form.Controls.Add($GoodButton)
 
+    $TopButton = New-Object System.Windows.Forms.Button
+    $TopButton.Location = New-Object System.Drawing.Point(75,120)
+    $TopButton.Size = New-Object System.Drawing.Size(75,23)
+    $TopButton.Text = 'Top'
+    $TopButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+
+    $form.AcceptButton = $TopButton
+    $form.Controls.Add($TopButton)
 
     $BadButton = New-Object System.Windows.Forms.Button
     $BadButton.Location = New-Object System.Drawing.Point(150,120)
@@ -252,8 +153,6 @@ function Get-Response($Name){
 
     $Prop = New-Object System.Windows.Forms.Form -Property @{TopMost = $true }
     $form.ShowDialog($prop)
-    #$form.ShowDialog()
-
 
 }
 
@@ -262,44 +161,60 @@ function Start-Mp3($data){
  
 
     try{
-        $startEnd = ([DateTime]$_.Length).AddSeconds(-$CheckTime).TimeOfDay.TotalSeconds
-        Write-host "$($_.name)  (Begin)" -ForegroundColor Cyan
-        #Show-CurrentSong -Name ($_.name) -status "Begin" -time 10
-#        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
-        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
-        #Show-CurrentSong -Name ($_.name) -status "Ending" -time 10
-        #Write-host "$($_.name)  (Ending)" -ForegroundColor Cyan
-        #Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
-#        Start-Process  $vlcPath -ArgumentList " --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+        
+        $startEnd = ([DateTime]$_.Length).AddSeconds(-([int]$CheckTime +1)).TimeOfDay.TotalSeconds
+
+        Write-host "$($_.name)  (First $CheckTime seconds)" -ForegroundColor Cyan
+
+        $mediaPlayer.open($($_.Fullname))
+        #mediaPlayer.open("C:\Sidify-download\Top 40 2021\Normalize\Silence\Donnie, Rene Froger - Bon Gepakt (SP-RIP-N).mp3")
+        $mediaPlayer.Position=New-Object System.TimeSpan(0, 0, 0, 0, 0)
+        $mediaPlayer.Play()
+
+        Start-Sleep ([int]$CheckTime + 2)
+        $mediaPlayer.Pause()
+        Start-Sleep -Milliseconds 500
+
+        Write-host "$($_.name)  (Last $CheckTime seconds)" -ForegroundColor Cyan
+        $mediaPlayer.Position=New-Object System.TimeSpan(0, 0, 0, $startEnd, 0)
+        $mediaPlayer.Play()
+        
+        Start-Sleep -Seconds ([int]$CheckTime + 1)
+        
+        $mediaPlayer.Stop()
+        $mediaPlayer.Close()
+
     }
-    catch{}
+    catch{
+    
+        Write-Error "unable to play audio"
+    }
     
     (Get-Response -Name ($data.name))
 }
 
 function Check-File($File){
-    $response = Start-Mp3 -data $_
+
+    $response = Start-Mp3 -data $File
 
     if($response -eq "Yes"){
-        New-Item -ItemType Directory ($_.Directory + "\Goed\") -Force -ea SilentlyContinue|Out-Null
-        Move-Item -Path $_.Fullname -Destination ($_.Directory + "\Goed\")
         return "Goed"
     }
 
     if($response -eq "OK"){
-        New-Item -ItemType Directory ($_.Directory + "\Top\") -Force -ea SilentlyContinue|Out-Null
-        Move-Item -Path $_.Fullname -Destination ($_.Directory + "\Top\")
+        New-Item -ItemType Directory ($File.Directory + "\Top\") -Force -ea SilentlyContinue|Out-Null
+        Move-Item -Path $_.Fullname -Destination ($File.Directory + "\Top\")
         return "Top"
     }
 
     if($response -eq "No"){
         
-        New-Item -ItemType Directory ($_.Directory + "\Dump\") -Force -ea SilentlyContinue|Out-Null
-        Move-Item -Path $_.Fullname -Destination ($_.Directory + "\Dump\")
+        New-Item -ItemType Directory ($File.Directory + "\Dump\") -Force -ea SilentlyContinue|Out-Null
+        Move-Item -Path $File.Fullname -Destination ($File.Directory + "\Dump\")
         return "Dump"
     }
     if($response -eq "Retry"){
-        Check-File -file $_
+        Check-File -file $File
     }else{
         write-host "You Hit Cancel"
         read-host "press enter to exit"
@@ -374,38 +289,52 @@ function Get-CheckTime(){
 }
 
 
-function Set-Ending(){
-    # Were done. Stop The Time!
-    $StopWatch.Stop()
+Function Get-MP3MetaData{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([Psobject])]
+    Param
+    (
+        [String] [Parameter(Mandatory=$true, ValueFromPipeline=$true)] $Directory
+    )
 
-    # Some math (proberbly wrong)
-    $savedtimecalc = [timespan]::fromseconds( $(( ($TotalMP3Time.TimeOfDay.TotalSeconds) - (($ID3TagData.Count) * ($CheckTime*2)) )) ) 
-
-    # Output some Details/Summary
-    
-    if($Done){
-        Write-Host " "
-        Write-Host " "
-        Write-Host " "
-        Write-Host " "
-        Write-Host " "
-        Write-Host " "
-        Write-Host " --------------- Summary -------------- "
-        Write-Host " "
-        write-host "Total`t`t`t $($ID3TagData.Count)"
-        write-host "Total Bad:`t`t $BadCount"
-        write-host "Total Runtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$StopWatch.Elapsed.hours,$StopWatch.Elapsed.minutes,$StopWatch.Elapsed.seconds))"
-        write-host "Total playtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$TotalMP3Time.TimeOfDay.hours,$TotalMP3Time.TimeOfDay.minutes,$TotalMP3Time.TimeOfDay.seconds))"
-        write-host "Saved Time: `t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$savedtimecalc.hours,$savedtimecalc.minutes,$savedtimecalc.seconds))"
-        read-host -Prompt "Press enter to exit and open output folder."
-        Start-Process explorer $MessureFolder
-    }else{
-        Write-Warning "Failed or Cancelled"
+    Begin
+    {
+        $shell = New-Object -ComObject "Shell.Application"
     }
-    if($Global:LogginEnabled){
-        stop-Transcript |Out-Null
+    Process
+    {
+
+        Foreach($Dir in $Directory)
+        {
+            $ObjDir = $shell.NameSpace($Dir)
+            $Files = Get-ChildItem $Dir| ?{$_.Extension -in '.mp3','.mp4'}
+
+            Foreach($File in $Files)
+            {
+                $ObjFile = $ObjDir.parsename($File.Name)
+                $MetaData = @{}
+                $MP3 = ($ObjDir.Items()|?{$_.path -like "*.mp3" -or $_.path -like "*.mp4"})
+                $PropertArray = 0,1,2,12,13,14,15,16,17,18,19,20,21,22,27,28,36,220,223
+            
+                Foreach($item in $PropertArray)
+                { 
+                    If($ObjDir.GetDetailsOf($ObjFile, $item)) #To avoid empty values
+                    {
+                        $MetaData[$($ObjDir.GetDetailsOf($MP3,$item))] = $ObjDir.GetDetailsOf($ObjFile, $item)
+                    }
+                 
+                }
+
+                New-Object psobject -Property $MetaData |select *, @{n="Directory";e={$Dir}}, @{n="Fullname";e={Join-Path "$Dir" "$($File.Name)" -Resolve}}, @{n="Extension";e={$File.Extension}}
+            }
+        }
+    }
+    End
+    {
     }
 }
+
 
 #--------- End of Functions ----------#
 #--------- End of Functions ----------#
@@ -447,13 +376,13 @@ if(!($Filepath)){
             $newname = ($_.FullName.split('[')[0].split(']')[0]+ $_.Extension)
             Write-Warning "Bad File name found $($_.FullName)"
             Write-Warning "replace with $newname"
-            $BadFileResponse = Ask-User -Title "Warning Bad File Name" -Message "Bad File name found:
-$($_.FullName)
+            $BadFileResponse = Ask-User -Title "Warning Bad File Name" -Message "                Bad File name found:
+                $($_.FullName)
 
-replace with:
-$newname
+                replace with:
+                $newname
 
-"
+            "
             if($BadFileResponse -eq "yes"){
                 Move-Item -LiteralPath $_.FullName  $newname
             }elseif ($BadFileResponse -eq "No" -or $BadFileResponse -eq "Cancel"){
@@ -479,56 +408,24 @@ if($Global:LogginEnabled){
 }
 
 # Clear screen
-Clear-Host
+#clear-Host
 
-## Determen what options have been run and find right folder to process
-   if($SilenceFolder){
-        $MessureFolder = $SilenceFolder
-   }elseif($NormFolder){
-        $MessureFolder = $NormFolder
-   }else{
-        $MessureFolder = $Filepath
-   }
 
-Write-warning "Please wait while folder is scanned"
-# Analyse Folder and get ID3 Tag and file atributes
-$ID3TagData = Get-MP3MetaData -Directory $MessureFolder
-
-# Clear Screen and write text
-Clear-Host
-write-host "Loading File... Please Wait"
-
-# Analyse Folder and get ID3 Tag and file atributes
-$ID3TagData = Get-MP3MetaData -Directory $MessureFolder
-
-# Check if we found files in the above folder
-if (!(($ID3TagData.count) -gt 0)){
-    Write-Warning "No files found"
-    Read-Host -Prompt "Press enter to exit"
-    break
-}
-
-# Set Counters for reporting
-$Total = $ID3TagData.Count
+$total = $Files.Count
 $BadCount = 0
 
-# Set counter total time
-Clear-Variable TotalMP3Time -Force -ea SilentlyContinue |Out-Null
-$TotalMP3Time = (get-date -Hour 0 -Minute 0 -Second 0 -Millisecond 0)
-
 # Clear the screen once more to be sure
-Clear-Host
+#Clear-Host
+$ID3TagData = Get-MP3MetaData -Directory $Filepath
 
-# Here we go, start stopwatch. For reporting purphose
-$StopWatch.Start()
 
 # Finally Run Through Files
 $ID3TagData |% {
-    Clear-Host
+    #Clear-Host
     if(Test-Path $($_.fullname)){
-        write-host "Count: $total / $($ID3TagData.Count)" -ForegroundColor Green
+        Write-Host "Count: $total / $($ID3TagData.Count)" -ForegroundColor Green
         $Result = Check-File -file $_
-        write-host "$Result" -ForegroundColor Cyan
+        Write-Host "$Result" -ForegroundColor Cyan
         if($Result -eq "Dump"){
             $BadCount = $BadCount + 1
         }    
@@ -539,20 +436,8 @@ $ID3TagData |% {
             $goodCount = $goodCount + 1
         }
         $total = $Total - 1
-        $TotalMP3Time += $_.length
     }
 
     
 }
-
-# We are at the end of the script. Let ending function know we made it
-$Done = $true
-
-# Stop loggin. Stop Stopwatch. Output Reporting. Open destination
-Set-Ending
-
-#### It's a wrap ####
-
- 
- 
                                                                                                        #  Top  -     Goed  -    Dump

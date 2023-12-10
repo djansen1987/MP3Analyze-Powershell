@@ -19,6 +19,10 @@ $Done = $false
 # Load stopwatch
 $StopWatch = New-Object System.Diagnostics.Stopwatch
 
+#mediaplayer
+Add-Type -AssemblyName presentationCore
+$mediaPlayer = New-Object system.windows.media.mediaplayer
+
 # Find Tempfolder and create if not exist
 if(!(Test-Path $TempFolder)){
     New-Item -ItemType Directory $TempFolder
@@ -45,7 +49,7 @@ if(!($ID3Module)){
 
 #check ffmpeg & ffmpeg-nomalize path
 $path = $env:Path -split ";"
-$path|?{$_ -like "*ffmpeg.exe"}
+#$path|?{$_ -like "*ffmpeg.exe"}
 $ffmpeg_normalize = pip list| ? {$_ -like "*ffmpeg-normalize*"}
 $ffmpeg_status = 0
 if(!($path)){
@@ -62,21 +66,21 @@ if($ffmpeg_status -ne 0){
 }
 
 # Find VLC path
-$vlcinstall = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*vlc*"}
-if(!($vlcinstall)){
-    if(Test-Path "C:\Program Files\VideoLAN\VLC\vlc.exe"){
-        $vlcPath = "C:\Program Files\VideoLAN\VLC\vlc.exe"
-    }elseif(Test-Path "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"){
-        $vlcPath = "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
-    }else{
-        write-host "vlc not found, please install vlc"
-        read-host -Prompt "Press enter to exit."
-        (New-Object -Com Shell.Application).Open("https://www.videolan.org/vlc/")        
-        break
-    }
-}else{
-    $vlcPath = "$($vlcinstall.InstallLocation)\vlc.exe"    
-}
+#$vlcinstall = Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | % { Get-ItemProperty $_.PsPath } | Select DisplayName,InstallLocation|?{$_.DisplayName -like "*vlc*"}
+#if(!($vlcinstall)){
+#    if(Test-Path "C:\Program Files\VideoLAN\VLC\vlc.exe"){
+#        $vlcPath = "C:\Program Files\VideoLAN\VLC\vlc.exe"
+#    }elseif(Test-Path "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"){
+#        $vlcPath = "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
+#    }else{
+#        write-host "vlc not found, please install vlc"
+#        read-host -Prompt "Press enter to exit."
+#        (New-Object -Com Shell.Application).Open("https://www.videolan.org/vlc/")        
+#        break
+#    }
+#}else{
+#    $vlcPath = "$($vlcinstall.InstallLocation)\vlc.exe"    
+#}
 
 #--------- Begin of Functions ----------#
 
@@ -175,7 +179,7 @@ function Get-Response($Name){
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'How Was the MP3'
-    $form.Size = New-Object System.Drawing.Size(380,260)
+    $form.Size = New-Object System.Drawing.Size(475,260)
     $form.StartPosition = 'CenterScreen'
 
     $GoodButton = New-Object System.Windows.Forms.Button
@@ -196,8 +200,17 @@ function Get-Response($Name){
     $form.AcceptButton = $BadButton
     $form.Controls.Add($BadButton)
 
+    $TopButton = New-Object System.Windows.Forms.Button
+    $TopButton.Location = New-Object System.Drawing.Point(225,120)
+    $TopButton.Size = New-Object System.Drawing.Size(75,23)
+    $TopButton.Text = 'Top'
+    $TopButton.DialogResult = [System.Windows.Forms.DialogResult]::ok
+
+    $form.AcceptButton = $TopButton
+    $form.Controls.Add($TopButton)
+
     $ReCheckButton = New-Object System.Windows.Forms.Button
-    $ReCheckButton.Location = New-Object System.Drawing.Point(225,120)
+    $ReCheckButton.Location = New-Object System.Drawing.Point(300,120)
     $ReCheckButton.Size = New-Object System.Drawing.Size(75,23)
     $ReCheckButton.Text = 'Re-Check'
     $ReCheckButton.DialogResult = [System.Windows.Forms.DialogResult]::retry
@@ -207,12 +220,13 @@ function Get-Response($Name){
 
     $label = New-Object System.Windows.Forms.Label
     $label.Location = New-Object System.Drawing.Point(10,20)
-    $label.Size = New-Object System.Drawing.Size(480,180)
+    $label.Size = New-Object System.Drawing.Size(380,200)
     $label.Text = "
     How Was $Name ?
 
     When Choose Good, go to next.
     When Choose Bad, move item to folder Bad and go to next.
+    When Choose Top, move item to folder Top and go to next.
     When Choos Re-Check, play Mp3 Again.
 
     "
@@ -227,17 +241,43 @@ function Get-Response($Name){
 
 }
 
+
 function Start-Mp3($data){
  
 
     try{
-        $startEnd = ([DateTime]$_.Length).AddSeconds(-$CheckTime).TimeOfDay.TotalSeconds
-        Write-host "$($_.name)  (Begin)" -ForegroundColor Cyan
-        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
-        Write-host "$($_.name)  (Ending)" -ForegroundColor Cyan
-        Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
+        
+        $startEnd = ([DateTime]$_.Length).AddSeconds(-[int]$CheckTime).TimeOfDay.TotalSeconds
+
+        Write-host "$($_.name)  (First $CheckTime seconds)" -ForegroundColor Cyan
+
+        $mediaPlayer.open($($_.Fullname))
+        #mediaPlayer.open("C:\Sidify-download\Top 40 2021\Normalize\Silence\Donnie, Rene Froger - Bon Gepakt (SP-RIP-N).mp3")
+        $mediaPlayer.Position=New-Object System.TimeSpan(0, 0, 0, 0, 0)
+        $mediaPlayer.Play()
+
+        Start-Sleep ([int]$CheckTime + 2)
+        $mediaPlayer.Pause()
+        Start-Sleep -Milliseconds 500
+
+        Write-host "$($_.name)  (Last $CheckTime seconds)" -ForegroundColor Cyan
+        $mediaPlayer.Position=New-Object System.TimeSpan(0, 0, 0, $startEnd, 0)
+        $mediaPlayer.Play()
+        
+        Start-Sleep -Seconds ([int]$CheckTime + 1)
+        
+        $mediaPlayer.Stop()
+        $mediaPlayer.Close()
+
+        #Write-host "$($_.name)  (Begin)" -ForegroundColor Cyan
+        #Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0  `"$($_.Fullname)`" --run-time=$CheckTime " -Wait
+        #Write-host "$($_.name)  (Ending)" -ForegroundColor Cyan
+        #Start-Process  $vlcPath -ArgumentList "--qt-start-minimized --play-and-exit --qt-notification=0 `"$($_.Fullname)`" --start-time=$startend " -Wait
     }
-    catch{}
+    catch{
+    
+        Write-Error "unable to play audio"
+    }
     
     (Get-Response -Name ($data.name))
 }
@@ -255,6 +295,14 @@ function Check-File($File){
         Move-Item -Path $_.Fullname -Destination ($_.Directory + "\Bad\")
         return "Bad"
     }
+
+    if($response -eq "OK"){
+        
+        New-Item -ItemType Directory ($_.Directory + "\Top\") -Force -ea SilentlyContinue|Out-Null
+        Move-Item -Path $_.Fullname -Destination ($_.Directory + "\Top\")
+        return "OK"
+    }
+
     if($response -eq "Retry"){
         Check-File -file $_
     }else{
@@ -330,6 +378,7 @@ function Get-CheckTime(){
     }
 }
 
+#While file scanning what to do with a bad file name
 function Ask-User($Title,$Message){
    Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -412,7 +461,8 @@ function Remove-Silence($folder){
         write-host $waitmessage
         Write-Host "$itemstodo / $totalitems  -  $filename"
         $itemstodo = ($itemstodo - 1)
-        ffmpeg -i $($folder + "\"+$filename.name) -y -c:a libmp3lame -b:a 256k -af silenceremove=1:0:-50dB -loglevel warning $($folder + "\Silence\"+$filename.name) 
+        ffmpeg -i $($folder + "\"+$filename.name) -hide_banner -loglevel error -af silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-60dB $($folder + "\Silence\"+$filename.name) 
+        #ffmpeg -i $($folder + "\"+$filename.name) -y -c:a libmp3lame -b:a 256k -af silenceremove=1:0:-50dB -loglevel warning $($folder + "\Silence\"+$filename.name) 
     }
     
     return $($folder + "\Silence\")
@@ -475,8 +525,13 @@ function Set-Ending(){
         write-host "Total Runtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$StopWatch.Elapsed.hours,$StopWatch.Elapsed.minutes,$StopWatch.Elapsed.seconds))"
         write-host "Total playtime:`t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$TotalMP3Time.TimeOfDay.hours,$TotalMP3Time.TimeOfDay.minutes,$TotalMP3Time.TimeOfDay.seconds))"
         write-host "Saved Time: `t $([string]::Format("`{0:d2}:{1:d2}:{2:d2}",$savedtimecalc.hours,$savedtimecalc.minutes,$savedtimecalc.seconds))"
-        read-host -Prompt "Press enter to exit and open output folder."
-        Start-Process explorer $MessureFolder
+        $response = read-host -Prompt "Press enter to exit and open output folder. R voor restart"
+        if($response -eq "R"){
+            Start-Process $env:USERPROFILE\desktop\"Start MP3 Analyse.lnk"
+            exit
+        }else{
+            Start-Process explorer $MessureFolder
+        }
     }else{
         Write-Warning "Failed or Cancelled"
     }
@@ -532,7 +587,8 @@ if(!($Filepath)){
             $newname = ($_.FullName.split('[')[0].split(']')[0]+ $_.Extension)
             Write-Warning "Bad File name found $($_.FullName)"
             Write-Warning "replace with $newname"
-            $BadFileResponse = Ask-User -Title "Warning Bad File Name" -Message "                Bad File name found:
+            $BadFileResponse = Ask-User -Title "Warning Bad File Name" -Message "
+                Bad File name found:
                 $($_.FullName)
 
                 replace with:
@@ -568,7 +624,7 @@ Clear-Host
 
 # Ask To do all fixes at once
 $FixAllResponse = Ask-User -Title "Normalize Files?" -Message "
-Would you like to do all fiexes at once? (Normalize, remove Silence, optimize ID3)
+Would you like to do all fixes at once? (Normalize, remove Silence, optimize ID3)
     "
 if ($FixAllResponse -eq "Yes"){
     
@@ -581,7 +637,8 @@ if ($FixAllResponse -eq "Yes"){
     Write-Host "Start Optimize ID3";Start-Sleep 1
     Fix-Id3andFileName -folder $SilenceFolder -Prefix $Prefix
 
-}elseif ($FixAllResponse -eq "No"){
+
+    }elseif ($FixAllResponse -eq "No"){
 
 
     # Ask if we should Normalize the files. If yes start function
