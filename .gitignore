@@ -1,2 +1,6 @@
 
 old_Get-Mp3Details.ps1
+Source/ffmpeg/
+Source/ffmpeg/bin/ffprobe.exe
+Source/ffmpeg/bin/ffplay.exe
+Source/ffmpeg/bin/ffmpeg.exe
