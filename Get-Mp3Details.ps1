@@ -5,7 +5,7 @@ write-host "Warming up... Please Wait"
 ## Set Tempfolder for last folder use test
 $TempFolder = "$env:TEMP\MP3Analyze"
 ## If first run, no folder is set start in
-$InitialFolder = "C:\Temp\Sidify\Download-Temp\"
+$InitialFolder = "D:\Temp\Music\"
 ## Log Powershell output to file in same directory
 $Global:LogginEnabled = $true ## $true = yes | $false = no
 $Prefix = "(SP-RIP-N)"
