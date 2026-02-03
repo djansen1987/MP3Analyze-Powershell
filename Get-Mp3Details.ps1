@@ -328,7 +328,7 @@ function Get-UniqueFolderName {
 Function Get-Response($Name, $total, $processed) {
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'MP3 Player'
-    $form.Size = New-Object System.Drawing.Size(780, 400)
+    $form.Size = New-Object System.Drawing.Size(950, 570)
     $form.StartPosition = 'CenterScreen'
     $form.KeyPreview = $true
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
@@ -336,16 +336,16 @@ Function Get-Response($Name, $total, $processed) {
 
     # Custom title bar
     $titleBar = New-Object System.Windows.Forms.Panel
-    $titleBar.Size = New-Object System.Drawing.Size(770, 30)
+    $titleBar.Size = New-Object System.Drawing.Size(950, 35)
     $titleBar.BackColor = [System.Drawing.Color]::FromArgb(28, 28, 28)
     $titleBar.Dock = [System.Windows.Forms.DockStyle]::Top
 
     $titleLabel = New-Object System.Windows.Forms.Label
     $titleLabel.Text = "MP3 Player"
     $titleLabel.ForeColor = [System.Drawing.Color]::White
-    $titleLabel.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
+    $titleLabel.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
     $titleLabel.AutoSize = $true
-    $titleLabel.Location = New-Object System.Drawing.Point(10, 5)
+    $titleLabel.Location = New-Object System.Drawing.Point(10, 7)
     $titleBar.Controls.Add($titleLabel)
 
     $closeButton = New-Object System.Windows.Forms.Button
@@ -354,27 +354,28 @@ Function Get-Response($Name, $total, $processed) {
     $closeButton.BackColor = [System.Drawing.Color]::FromArgb(28, 28, 28)
     $closeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $closeButton.FlatAppearance.BorderSize = 0
-    $closeButton.Size = New-Object System.Drawing.Size(30, 30)
-    $closeButton.Location = New-Object System.Drawing.Point(720, 0)
+    $closeButton.Size = New-Object System.Drawing.Size(35, 35)
+    $closeButton.Location = New-Object System.Drawing.Point(905, 0)
     $closeButton.Add_Click({ $form.Close() })
     $titleBar.Controls.Add($closeButton)
     $form.Controls.Add($titleBar)
 
     $nameLabel = New-Object System.Windows.Forms.Label
-    $nameLabel.Location = New-Object System.Drawing.Point(10, 40)
-    $nameLabel.Size = New-Object System.Drawing.Size(630, 50)
+    $nameLabel.Location = New-Object System.Drawing.Point(10, 45)
+    $nameLabel.Size = New-Object System.Drawing.Size(920, 70)
     $nameLabel.ForeColor = [System.Drawing.Color]::FromArgb(255, 228, 181)
-    $nameLabel.Font = New-Object System.Drawing.Font("Segoe UI", 14, [System.Drawing.FontStyle]::Bold)
+    $nameLabel.Font = New-Object System.Drawing.Font("Segoe UI", 16, [System.Drawing.FontStyle]::Bold)
     $nameLabel.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $nameLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter 
+    $nameLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $nameLabel.AutoSize = $false
     $nameLabel.Text = "$($Name -replace '.mp3','')"
     $form.Controls.Add($nameLabel)
 
     $label = New-Object System.Windows.Forms.Label
-    $label.Location = New-Object System.Drawing.Point(10, 80)
-    $label.Size = New-Object System.Drawing.Size(630, 160)
+    $label.Location = New-Object System.Drawing.Point(20, 125)
+    $label.Size = New-Object System.Drawing.Size(900, 140)
     $label.ForeColor = [System.Drawing.Color]::White
-    $label.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
+    $label.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Regular)
     $label.Text = "
     Choose Good, leave file in place.
     Choose Top, move item to folder Top.
@@ -387,8 +388,8 @@ Function Get-Response($Name, $total, $processed) {
     $form.Controls.Add($label)
 
     $timeBar = New-Object System.Windows.Forms.TrackBar
-    $timeBar.Location = New-Object System.Drawing.Point(10, 240)
-    $timeBar.Size = New-Object System.Drawing.Size(730, 45)
+    $timeBar.Location = New-Object System.Drawing.Point(20, 275)
+    $timeBar.Size = New-Object System.Drawing.Size(900, 50)
     $timeBar.Minimum = 0
     $timeBar.Maximum = 100
     $timeBar.TickFrequency = 1
@@ -397,15 +398,17 @@ Function Get-Response($Name, $total, $processed) {
 
     # --- Add volume bar ---
     $volumeLabel = New-Object System.Windows.Forms.Label
-    $volumeLabel.Text = "Volume"
-    $volumeLabel.Location = New-Object System.Drawing.Point(10, 285)
-    $volumeLabel.Size = New-Object System.Drawing.Size(60, 20)
+    $volumeLabel.Text = "Volume:"
+    $volumeLabel.Location = New-Object System.Drawing.Point(20, 345)
+    $volumeLabel.Size = New-Object System.Drawing.Size(80, 25)
     $volumeLabel.ForeColor = [System.Drawing.Color]::White
+    $volumeLabel.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
+    $volumeLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
     $form.Controls.Add($volumeLabel)
 
     $volumeBar = New-Object System.Windows.Forms.TrackBar
-    $volumeBar.Location = New-Object System.Drawing.Point(70, 280)
-    $volumeBar.Size = New-Object System.Drawing.Size(200, 45)
+    $volumeBar.Location = New-Object System.Drawing.Point(100, 340)
+    $volumeBar.Size = New-Object System.Drawing.Size(300, 50)
     $volumeBar.Minimum = 0
     $volumeBar.Maximum = 100
     $volumeBar.TickFrequency = 10
@@ -421,56 +424,56 @@ Function Get-Response($Name, $total, $processed) {
     })
 
     # --- Move the response buttons down to avoid overlap ---
-    $buttonY = 330
+    $buttonY = 445
     $GoodButton = New-Object System.Windows.Forms.Button
-    $GoodButton.Location = New-Object System.Drawing.Point(80, $buttonY)
-    $GoodButton.Size = New-Object System.Drawing.Size(140, 50)
+    $GoodButton.Location = New-Object System.Drawing.Point(60, $buttonY)
+    $GoodButton.Size = New-Object System.Drawing.Size(180, 60)
     $GoodButton.Text = 'Good (1)'
     $GoodButton.BackColor = [System.Drawing.Color]::FromArgb(173, 216, 230)
     $GoodButton.ForeColor = [System.Drawing.Color]::Black
     $GoodButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $GoodButton.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $GoodButton.FlatAppearance.BorderSize = 0
-    $GoodButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $GoodButton.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
     $GoodButton.DialogResult = [System.Windows.Forms.DialogResult]::Yes
     $form.Controls.Add($GoodButton)
 
     $TopButton = New-Object System.Windows.Forms.Button
-    $TopButton.Location = New-Object System.Drawing.Point(240, $buttonY)
-    $TopButton.Size = New-Object System.Drawing.Size(140, 50)
+    $TopButton.Location = New-Object System.Drawing.Point(260, $buttonY)
+    $TopButton.Size = New-Object System.Drawing.Size(180, 60)
     $TopButton.Text = 'Top (2)'
     $TopButton.BackColor = [System.Drawing.Color]::FromArgb(144, 238, 144)
     $TopButton.ForeColor = [System.Drawing.Color]::Black
     $TopButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $TopButton.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $TopButton.FlatAppearance.BorderSize = 0
-    $TopButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $TopButton.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
     $TopButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $form.Controls.Add($TopButton)
 
     $BadButton = New-Object System.Windows.Forms.Button
-    $BadButton.Location = New-Object System.Drawing.Point(400, $buttonY)
-    $BadButton.Size = New-Object System.Drawing.Size(140, 50)
+    $BadButton.Location = New-Object System.Drawing.Point(460, $buttonY)
+    $BadButton.Size = New-Object System.Drawing.Size(180, 60)
     $BadButton.Text = 'Bad (3)'
     $BadButton.BackColor = [System.Drawing.Color]::FromArgb(255, 182, 193)
     $BadButton.ForeColor = [System.Drawing.Color]::Black
     $BadButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $BadButton.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $BadButton.FlatAppearance.BorderSize = 0
-    $BadButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $BadButton.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
     $BadButton.DialogResult = [System.Windows.Forms.DialogResult]::No
     $form.Controls.Add($BadButton)
 
     $ReCheckButton = New-Object System.Windows.Forms.Button
-    $ReCheckButton.Location = New-Object System.Drawing.Point(560, $buttonY)
-    $ReCheckButton.Size = New-Object System.Drawing.Size(140, 50)
+    $ReCheckButton.Location = New-Object System.Drawing.Point(660, $buttonY)
+    $ReCheckButton.Size = New-Object System.Drawing.Size(180, 60)
     $ReCheckButton.Text = 'Re-Check (4)'
     $ReCheckButton.BackColor = [System.Drawing.Color]::FromArgb(221, 160, 221)
     $ReCheckButton.ForeColor = [System.Drawing.Color]::Black
     $ReCheckButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $ReCheckButton.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $ReCheckButton.FlatAppearance.BorderSize = 0
-    $ReCheckButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $ReCheckButton.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
     $ReCheckButton.DialogResult = [System.Windows.Forms.DialogResult]::Retry
     $form.Controls.Add($ReCheckButton)
 
@@ -683,7 +686,7 @@ function Remove-Silence($folder){
         # Improved silence removal: only at end, less aggressive
         $srcFile = $folder + "\" + $filename.name
         $dstFile = $folder + "\Silence\" + $filename.name
-        ffmpeg -i $srcFile -hide_banner -loglevel error -af "silenceremove=start_periods=0:stop_periods=1:stop_duration=2:stop_threshold=-50dB:detection=peak" $dstFile
+        ffmpeg -i $srcFile -hide_banner -loglevel error -af "silenceremove=start_periods=0:stop_periods=1:stop_duration=2:stop_threshold=-50dB:detection=peak" -c:a libmp3lame -b:a 320k -ar 44100 $dstFile
 
         # --- Restore album art from source file if present ---
         $coverTemp = [System.IO.Path]::GetTempFileName() + ".jpg"
